@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { @apply bg-slate-50 antialiased dark:bg-slate-950; }
+  body { @apply min-w-[320px] bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100; }
+  button, input, select { font: inherit; }
+  button:focus-visible, input:focus-visible, select:focus-visible { @apply outline-none ring-2 ring-red-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-950; }
+  ::selection { @apply bg-red-500 text-white; }
+}
+
+@layer utilities {
+  .animate-toast-in { animation: toast-in 220ms cubic-bezier(.2,.8,.2,1) both; }
+  .animate-theme-in { animation: theme-in 220ms ease-out both; }
+  .animate-cart-pulse { animation: cart-pulse 700ms ease-out both; }
+}
+
+@keyframes toast-in { from { opacity: 0; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes theme-in { from { opacity: 0; transform: rotate(-25deg) scale(.8); } to { opacity: 1; transform: rotate(0) scale(1); } }
+@keyframes cart-pulse { 0% { box-shadow: 0 0 0 0 rgb(239 68 68 / .45); } 55% { box-shadow: 0 0 0 10px rgb(239 68 68 / 0); } 100% { box-shadow: 0 0 0 0 rgb(239 68 68 / 0); } }
