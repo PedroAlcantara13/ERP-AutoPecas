@@ -9,7 +9,26 @@ const vendaRoutes = require('./src/routes/venda.routes');
 
 const app = express();
 
-app.use(cors());
+// Configuração de CORS para liberar o frontend na Vercel
+const allowedOrigins = [
+  'https://erp-auto-pecas.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Bloqueado pelo CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
 // Endpoints da API
