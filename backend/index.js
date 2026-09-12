@@ -40,14 +40,19 @@ app.get('/', (req, res) => {
   res.json({ mensagem: 'API do ERP Autopeças rodando perfeitamente!' });
 });
 
-const PORT = process.env.PORT || 5000;
+// Executa app.listen APENAS em desenvolvimento local
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, async () => {
+    console.log(`🚀 Servidor rodando na porta ${PORT}`);
+    try {
+      await pool.query('SELECT NOW()');
+      console.log('✅ Banco de dados conectado com sucesso!');
+    } catch (error) {
+      console.error('❌ Erro na conexão com o banco:', error.message);
+    }
+  });
+}
 
-app.listen(PORT, async () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
-  try {
-    await pool.query('SELECT NOW()');
-    console.log('✅ Banco de dados conectado com sucesso!');
-  } catch (error) {
-    console.error('❌ Erro na conexão com o banco:', error.message);
-  }
-});
+// Exporta o app do Express para a Vercel transformar em Serverless Function
+module.exports = app;
