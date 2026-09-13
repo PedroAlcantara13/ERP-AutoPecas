@@ -20,28 +20,23 @@ function valoresOrcamento(dados = {}) {
   const desconto = Number(dados.desconto || 0);
   if (!Number.isFinite(desconto) || desconto < 0) throw erro('Desconto inválido.');
   const subtotal = itens.reduce((acumulado, item) => acumulado + item.subtotal, 0);
-  return { itens, desconto, subtotal, total: Math.max(0, subtotal - desconto), cliente_id: dados.cliente_id ? Number(dados.cliente_id) : null };
+  return { 
+    itens, 
+    desconto, 
+    subtotal, 
+    total: Math.max(0, subtotal - desconto), 
+    cliente_id: dados.cliente_id ? Number(dados.cliente_id) : null,
+    cliente_nome: dados.cliente_nome?.trim() || 'Cliente Avulso'
+  };
 }
 
 async function validarClienteEProdutos(client, clienteId, itens, bloquearProdutos = false) {
   if (clienteId) {
-    const cliente = await client.query('SELECT id FROM pessoas WHERE id = $1 AND cliente = true', [clienteId]);
+    const cliente = await client.query('SELECT id, nome_fantasia FROM pessoas WHERE id = $1 AND cliente = true', [clienteId]);
     if (!cliente.rows[0]) throw erro('Cliente não encontrado ou não habilitado.', 404);
+    return cliente.rows[0].nome_fantasia;
   }
-  const quantidadesPorProduto = new Map();
-  for (const item of itens) {
-    quantidadesPorProduto.set(item.produto_id, (quantidadesPorProduto.get(item.produto_id) || 0) + Number(item.quantidade));
-  }
-  for (const [produtoId, quantidade] of quantidadesPorProduto) {
-    const { rows } = await client.query(
-      `SELECT id, nome, estoque_atual FROM produtos WHERE id = $1 AND ativo = true${bloquearProdutos ? ' FOR UPDATE' : ''}`,
-      [produtoId]
-    );
-    if (!rows[0]) throw erro(`Produto código ${produtoId} não foi encontrado ou está inativo.`, 404);
-    if (bloquearProdutos && Number(rows[0].estoque_atual) < quantidade) {
-      throw erro(`Estoque insuficiente para "${rows[0].nome}". Disponível: ${rows[0].estoque_atual}`);
-    }
-  }
+  return null;
 }
 
 async function inserirItens(client, orcamentoId, itens) {
@@ -61,7 +56,7 @@ async function listarOrcamentos(filtros = {}) {
   else if (filtros.periodo === 'mes') condicoes.push("o.criado_em >= CURRENT_DATE - INTERVAL '30 days'");
   if (filtros.busca?.trim()) {
     valores.push(`%${filtros.busca.trim()}%`);
-    condicoes.push(`(p.nome_fantasia ILIKE $${valores.length} OR p.cnpj_cpf ILIKE $${valores.length} OR CAST(o.id AS TEXT) ILIKE $${valores.length})`);
+    condicoes.push(`(p.nome_fantasia ILIKE $${valores.length} OR o.cliente_nome ILIKE $${valores.length} OR p.cnpj_cpf ILIKE $${valores.length} OR CAST(o.id AS TEXT) ILIKE $${valores.length})`);
   }
   if (filtros.status?.trim()) {
     valores.push(filtros.status.trim().toLowerCase());
@@ -69,7 +64,7 @@ async function listarOrcamentos(filtros = {}) {
   }
   const { rows } = await pool.query(
     `SELECT o.id, o.cliente_id, o.desconto, o.total, o.status, o.venda_id, o.criado_em, o.atualizado_em,
-            COALESCE(p.nome_fantasia, 'Cliente Avulso') AS cliente_nome, p.cnpj_cpf AS cliente_documento
+            COALESCE(p.nome_fantasia, o.cliente_nome, 'Cliente Avulso') AS cliente_nome, p.cnpj_cpf AS cliente_documento
      FROM orcamentos o LEFT JOIN pessoas p ON p.id = o.cliente_id
      WHERE ${condicoes.join(' AND ')} ORDER BY o.criado_em DESC`, valores
   );
@@ -79,7 +74,7 @@ async function listarOrcamentos(filtros = {}) {
 async function obterOrcamentoPorId(id) {
   const orcamento = await pool.query(
     `SELECT o.id, o.cliente_id, o.desconto, o.total, o.status, o.venda_id, o.criado_em, o.atualizado_em,
-            COALESCE(p.nome_fantasia, 'Cliente Avulso') AS cliente_nome, p.cnpj_cpf AS cliente_documento
+            COALESCE(p.nome_fantasia, o.cliente_nome, 'Cliente Avulso') AS cliente_nome, p.cnpj_cpf AS cliente_documento
      FROM orcamentos o LEFT JOIN pessoas p ON p.id = o.cliente_id WHERE o.id = $1`, [id]
   );
   if (!orcamento.rows[0]) throw erro('Orçamento não encontrado.', 404);
@@ -97,10 +92,12 @@ async function criarOrcamento(dados) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await validarClienteEProdutos(client, valores.cliente_id, valores.itens);
+    const nomeClienteBanco = await validarClienteEProdutos(client, valores.cliente_id, valores.itens);
+    const nomeFinal = nomeClienteBanco || valores.cliente_nome;
+
     const resultado = await client.query(
-      `INSERT INTO orcamentos (cliente_id, desconto, total, status) VALUES ($1, $2, $3, 'pendente') RETURNING *`,
-      [valores.cliente_id, valores.desconto, valores.total]
+      `INSERT INTO orcamentos (cliente_id, cliente_nome, desconto, total, status) VALUES ($1, $2, $3, $4, 'pendente') RETURNING *`,
+      [valores.cliente_id, nomeFinal, valores.desconto, valores.total]
     );
     await inserirItens(client, resultado.rows[0].id, valores.itens);
     await client.query('COMMIT');
@@ -116,8 +113,14 @@ async function atualizarOrcamento(id, dados) {
     const atual = await client.query('SELECT id, status FROM orcamentos WHERE id = $1 FOR UPDATE', [id]);
     if (!atual.rows[0]) throw erro('Orçamento não encontrado.', 404);
     if (atual.rows[0].status !== 'pendente') throw erro('Somente orçamentos pendentes podem ser alterados.');
-    await validarClienteEProdutos(client, valores.cliente_id, valores.itens);
-    await client.query('UPDATE orcamentos SET cliente_id = $1, desconto = $2, total = $3, atualizado_em = CURRENT_TIMESTAMP WHERE id = $4', [valores.cliente_id, valores.desconto, valores.total, id]);
+    
+    const nomeClienteBanco = await validarClienteEProdutos(client, valores.cliente_id, valores.itens);
+    const nomeFinal = nomeClienteBanco || valores.cliente_nome;
+
+    await client.query(
+      'UPDATE orcamentos SET cliente_id = $1, cliente_nome = $2, desconto = $3, total = $4, atualizado_em = CURRENT_TIMESTAMP WHERE id = $5', 
+      [valores.cliente_id, nomeFinal, valores.desconto, valores.total, id]
+    );
     await client.query('DELETE FROM orcamento_itens WHERE orcamento_id = $1', [id]);
     await inserirItens(client, id, valores.itens);
     await client.query('COMMIT');
