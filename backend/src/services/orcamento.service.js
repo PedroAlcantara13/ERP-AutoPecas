@@ -203,12 +203,12 @@ async function aprovarOrcamento(id, dados = {}) {
     );
     await validarClienteEProdutos(client, orcamento.rows[0].cliente_id, itens.rows, true);
 
-    const statusVenda = ehCrediario ? 'PENDENTE' : 'CONCLUIDA';
-    const statusPagamento = ehCrediario ? 'pendente' : 'pago';
-    const dataPagamento = statusPagamento === 'pago' ? new Date() : null;
+    // Mantém somente parâmetros com um único contexto de tipo. Status e data são
+    // literais controlados pelo servidor, eliminando a causa do erro 42P08.
+    const valoresStatus = ehCrediario
+      ? "'PENDENTE'::varchar, 'pendente'::varchar, NULL::timestamp"
+      : "'CONCLUIDA'::varchar, 'pago'::varchar, CURRENT_TIMESTAMP";
 
-    // Cada parâmetro reutilizado pelo PostgreSQL possui tipo explícito. Isso evita
-    // a inferência conflitante de `text` versus `varchar` (erro 42P08 no Neon).
     const venda = await client.query(
       `INSERT INTO vendas (
         cliente_id, 
@@ -226,9 +226,7 @@ async function aprovarOrcamento(id, dados = {}) {
         $3::varchar, 
         $4::varchar, 
         $5, 
-        $6::varchar,
-        $7::varchar,
-        $8::timestamp
+        ${valoresStatus}
       ) 
       RETURNING id`,
       [
@@ -236,10 +234,7 @@ async function aprovarOrcamento(id, dados = {}) {
         orcamento.rows[0].desconto,                      // $2
         ehCrediario ? 'crediario' : formaPagamentoBruta, // $3
         dados.usuario?.trim() || 'Atendente Balcão',        // $4
-        orcamento.rows[0].total,                         // $5
-        statusVenda,                                     // $6
-        statusPagamento,                                 // $7
-        dataPagamento                                    // $8
+        orcamento.rows[0].total                          // $5
       ]
     );
 
