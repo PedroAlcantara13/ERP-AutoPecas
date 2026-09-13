@@ -24,13 +24,19 @@ async function processarVenda(dados = {}) {
   if (!Number.isFinite(desconto) || desconto < 0) throw erro('Desconto inválido.');
   if (!dados.forma_pagamento?.trim()) throw erro('Forma de pagamento é obrigatória.');
 
-  const formaPagamentoInformada = dados.forma_pagamento.trim();
-  const ehCrediario = formaPagamentoInformada.toLowerCase() === 'crediario';
-  const formaPagamento = ehCrediario ? 'crediario' : formaPagamentoInformada;
-  
-  // Definição dos valores diretamente no JavaScript
-  const statusVenda = ehCrediario ? 'PENDENTE' : 'CONCLUIDA';
-  const dataPagamento = ehCrediario ? null : new Date();
+// Remove acentos e converte para minúsculas para garantir a validação
+const formaPagamentoLimpa = dados.forma_pagamento
+  .trim()
+  .toLowerCase()
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, ""); // 'crediário' vira 'crediario'
+
+const ehCrediario = formaPagamentoLimpa === 'crediario';
+const formaPagamento = ehCrediario ? 'crediario' : dados.forma_pagamento.trim();
+
+// Se for crediário, registra como PENDENTE e sem data de quitação
+const statusVenda = ehCrediario ? 'PENDENTE' : 'CONCLUIDA';
+const dataPagamento = ehCrediario ? null : new Date();
 
   const client = await pool.connect();
   try {
