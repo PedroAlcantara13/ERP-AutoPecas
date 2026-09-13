@@ -9,3 +9,6 @@ WHERE status_pagamento IS NULL;
 
 ALTER TABLE vendas ALTER COLUMN status_pagamento SET DEFAULT 'pago';
 ALTER TABLE vendas ALTER COLUMN status_pagamento SET NOT NULL;
+
+ALTER TABLE vendas DROP CONSTRAINT IF EXISTS vendas_status_check;
+ALTER TABLE vendas ADD CONSTRAINT vendas_status_check CHECK (status IN ('CONCLUIDA', 'PENDENTE', 'CANCELADA'));

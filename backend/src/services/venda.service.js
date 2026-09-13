@@ -18,25 +18,44 @@ function agruparItens(itens) {
     .sort((a, b) => a.produto_id - b.produto_id);
 }
 
+function extrairFormaPagamento(valor) {
+  let forma = Array.isArray(valor) ? valor[0] : valor;
+
+  if (forma && typeof forma === 'object') {
+    const campos = ['valor', 'value', 'nome', 'descricao', 'label', 'forma_pagamento', 'formaPagamento', 'tipo_pagamento', 'tipo'];
+    forma = campos.map((campo) => forma[campo]).find((campo) => campo !== undefined && campo !== null && campo !== '');
+
+    if (forma === undefined || forma === null || forma === '') {
+      const formasPorId = { 1: 'pix', 2: 'dinheiro', 3: 'credito', 4: 'debito', 5: 'crediario' };
+      forma = formasPorId[valor.id] || valor.id;
+    }
+  }
+
+  if (typeof forma === 'number') {
+    const formasPorId = { 1: 'pix', 2: 'dinheiro', 3: 'credito', 4: 'debito', 5: 'crediario' };
+    forma = formasPorId[forma] || String(forma);
+  }
+  if (typeof forma !== 'string') return '';
+
+  return forma.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().replace(/\s+/g, '').toLowerCase();
+}
+
 async function processarVenda(dados = {}) {
+  const formasRecebidas = [dados.forma_pagamento, dados.formaPagamento, dados.tipo_pagamento]
+    .filter((forma) => forma !== undefined && forma !== null && forma !== '');
+  const formaPagamentoRecebida = formasRecebidas.find((forma) => extrairFormaPagamento(forma)) ?? formasRecebidas[0];
+  const formaPagamento = extrairFormaPagamento(formaPagamentoRecebida);
+  const ehCrediario = formaPagamento === 'crediario';
+  console.log('[processarVenda] forma_pagamento recebido:', formaPagamentoRecebida, '| ehCrediario:', ehCrediario);
+
   const itens = agruparItens(dados.itens);
   const desconto = Number(dados.desconto || 0);
   if (!Number.isFinite(desconto) || desconto < 0) throw erro('Desconto inválido.');
-  if (!dados.forma_pagamento?.trim()) throw erro('Forma de pagamento é obrigatória.');
+  if (!formaPagamento) throw erro('Forma de pagamento é obrigatória ou inválida.');
 
-// Remove acentos e converte para minúsculas para garantir a validação
-const formaPagamentoLimpa = dados.forma_pagamento
-  .trim()
-  .toLowerCase()
-  .normalize("NFD")
-  .replace(/[\u0300-\u036f]/g, ""); // 'crediário' vira 'crediario'
-
-const ehCrediario = formaPagamentoLimpa === 'crediario';
-const formaPagamento = ehCrediario ? 'crediario' : dados.forma_pagamento.trim();
-
-// Se for crediário, registra como PENDENTE e sem data de quitação
-const statusVenda = ehCrediario ? 'PENDENTE' : 'CONCLUIDA';
-const dataPagamento = ehCrediario ? null : new Date();
+  const statusVenda = ehCrediario ? 'PENDENTE' : 'CONCLUIDA';
+  const statusPagamento = ehCrediario ? 'pendente' : 'pago';
+  const dataPagamento = ehCrediario ? null : new Date();
 
   const client = await pool.connect();
   try {
@@ -67,14 +86,11 @@ const dataPagamento = ehCrediario ? null : new Date();
     }
 
     const total = Math.max(0, subtotal - desconto);
-    const usuario = dados.usuario?.trim() || 'Atendente Balcão';
-
-    // INSERT com 7 parâmetros distintos e casts explícitos (evita o erro no Postgres)
     const vendaRes = await client.query(
-      `INSERT INTO vendas (cliente_id, desconto, forma_pagamento, usuario, total, status, data_pagamento)
-       VALUES ($1, $2, $3, $4, $5, $6::varchar, $7::timestamp)
-       RETURNING id, criado_em, status, status AS status_pagamento, data_pagamento`,
-      [clienteId, desconto, formaPagamento, usuario, total, statusVenda, dataPagamento]
+      `INSERT INTO vendas (cliente_id, desconto, forma_pagamento, usuario, total, status, data_pagamento, status_pagamento)
+       VALUES ($1, $2, $3, $4, $5, $6::varchar, $7::timestamp, $8::varchar)
+       RETURNING id, criado_em, status, status_pagamento, data_pagamento`,
+      [clienteId, desconto, formaPagamento, dados.usuario?.trim() || 'Atendente Balcão', total, statusVenda, dataPagamento, statusPagamento]
     );
 
     const vendaId = vendaRes.rows[0].id;

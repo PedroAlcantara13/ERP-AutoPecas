@@ -48,7 +48,7 @@ CREATE TABLE vendas (
     forma_pagamento VARCHAR(50) NOT NULL,
     usuario VARCHAR(100) DEFAULT 'Atendente Balcão',
     total NUMERIC(10,2) DEFAULT 0.00,
-    status VARCHAR(20) DEFAULT 'CONCLUIDA' CHECK (status IN ('CONCLUIDA', 'CANCELADA')),
+    status VARCHAR(20) DEFAULT 'CONCLUIDA' CHECK (status IN ('CONCLUIDA', 'PENDENTE', 'CANCELADA')),
     status_pagamento VARCHAR(20) NOT NULL DEFAULT 'pago' CHECK (status_pagamento IN ('pago', 'pendente')),
     data_pagamento TIMESTAMP,
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
