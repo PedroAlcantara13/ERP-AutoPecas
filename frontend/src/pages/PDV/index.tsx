@@ -319,7 +319,7 @@ export const TelaPDVBalcao: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-6">
+    <div className="page-shell">
       <style>{`
         @media print {
           body * { visibility: hidden; }

@@ -90,7 +90,7 @@ export const TelaHistoricoVendas: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-6">
+    <div className="page-shell">
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -159,7 +159,7 @@ export const TelaHistoricoVendas: React.FC = () => {
 
         {/* Input de Busca */}
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-2.5 text-gray-400" size={16} />
+          <Search className="absolute left-3.5 top-2.5 text-slate-400" size={16} />
           <input
             type="text"
             placeholder="Buscar por código (#Nº) ou nome do cliente..."
@@ -202,14 +202,14 @@ export const TelaHistoricoVendas: React.FC = () => {
                       <td className="p-4 font-mono font-bold text-red-400">#{venda.id}</td>
                       <td className="p-4 text-slate-600 dark:text-slate-300">
                         <span className="flex items-center gap-1.5">
-                          <Calendar size={13} className="text-gray-500" />
+                          <Calendar size={13} className="text-slate-500" />
                           {new Date(venda.data).toLocaleString('pt-BR')}
                         </span>
                       </td>
                       <td className="p-4">
                         <p className="font-semibold text-slate-800 dark:text-slate-200">{venda.cliente_nome}</p>
                         {venda.cliente_documento && (
-                          <p className="text-[10px] text-gray-500">{venda.cliente_documento}</p>
+                          <p className="text-[10px] text-slate-500">{venda.cliente_documento}</p>
                         )}
                       </td>
                       <td className="p-4">
@@ -276,19 +276,19 @@ export const TelaHistoricoVendas: React.FC = () => {
       {/* Modal de Detalhes da Venda e Impressão */}
       {vendaSelecionada && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white text-gray-900 p-6 rounded-3xl max-w-md w-full shadow-2xl relative space-y-4">
+          <div className="bg-white text-slate-900 p-6 rounded-3xl max-w-md w-full shadow-2xl relative space-y-4">
             <button
               onClick={() => setVendaSelecionada(null)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-700 no-print"
+              className="absolute right-4 top-4 text-slate-400 hover:text-slate-700 no-print"
             >
               <X size={20} />
             </button>
 
             <div id="cupom-detalhe-impressao" className="space-y-3 font-mono text-xs">
-              <div className="text-center border-b border-dashed border-gray-400 pb-2">
+              <div className="text-center border-b border-dashed border-slate-400 pb-2">
                 <h3 className="font-bold text-sm uppercase">AUTOPEÇAS & OFICINA</h3>
                 <p>Comprovante Não Fiscal</p>
-                <p className="text-[10px] text-gray-500">{new Date(vendaSelecionada.data).toLocaleString('pt-BR')}</p>
+                <p className="text-[10px] text-slate-500">{new Date(vendaSelecionada.data).toLocaleString('pt-BR')}</p>
                 <p className="font-bold">Venda Nº #{vendaSelecionada.id}</p>
                 {String(vendaSelecionada.status).toUpperCase() === 'CANCELADA' && (
                   <p className="text-red-600 font-bold uppercase mt-1">*** CANCELADA / ESTORNADA ***</p>
@@ -300,7 +300,7 @@ export const TelaHistoricoVendas: React.FC = () => {
                 <p><span className="font-bold">Atendente:</span> {vendaSelecionada.usuario}</p>
               </div>
 
-              <div className="border-b border-t border-dashed border-gray-400 py-2 space-y-1">
+              <div className="border-b border-t border-dashed border-slate-400 py-2 space-y-1">
                 <div className="flex justify-between font-bold text-[10px]">
                   <span>ITEM</span>
                   <span>QTD x UNIT</span>
@@ -323,7 +323,7 @@ export const TelaHistoricoVendas: React.FC = () => {
                 <p className="text-[10px]">Forma de Pagamento: {vendaSelecionada.forma_pagamento}</p>
               </div>
 
-              <div className="text-center border-t border-dashed border-gray-400 pt-2 text-[10px]">
+              <div className="text-center border-t border-dashed border-slate-400 pt-2 text-[10px]">
                 <p>Obrigado pela preferência!</p>
               </div>
             </div>
@@ -349,14 +349,14 @@ export const TelaHistoricoVendas: React.FC = () => {
               <h3 className="text-lg font-bold">Cancelar Venda #{vendaParaCancelar.id}?</h3>
             </div>
 
-            <p className="text-xs text-gray-400 leading-relaxed">
+            <p className="text-xs text-slate-400 leading-relaxed">
               Esta ação irá alterar o status da venda para <strong className="text-red-400">CANCELADA</strong> e <strong className="text-emerald-400">devolverá automaticamente todos os produtos ao estoque</strong>.
             </p>
 
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => setVendaParaCancelar(null)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-800 bg-gray-950 text-gray-300 font-bold text-xs hover:bg-gray-800 transition"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition"
               >
                 Voltar
               </button>

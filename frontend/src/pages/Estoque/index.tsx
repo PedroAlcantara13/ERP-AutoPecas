@@ -196,7 +196,7 @@ export const TelaGestaoEstoque: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-6">
+    <div className="page-shell">
       {/* Cabeçalho */}
       <header className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
         <div>
@@ -272,7 +272,7 @@ export const TelaGestaoEstoque: React.FC = () => {
       {/* Barra de Filtros */}
       <div className="mb-6 flex flex-col justify-between gap-4 rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur-md md:flex-row md:items-center dark:border-slate-800 dark:bg-slate-900/60">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-2.5 text-gray-400" size={16} />
+          <Search className="absolute left-3.5 top-2.5 text-slate-500 dark:text-slate-400" size={16} />
           <input
             type="text"
             placeholder="Filtrar por Nome, SKU ou Aplicação..."
@@ -375,7 +375,7 @@ export const TelaGestaoEstoque: React.FC = () => {
 
                           <button
                             onClick={() => { setProdutoEditar(prod); setFormEdicao(prod); }}
-                            className="p-2 rounded-xl bg-gray-950 border border-gray-800 hover:border-red-500/50 text-gray-300 hover:text-white transition"
+                            className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 transition hover:border-red-500/50 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:text-white"
                             title="Editar Dados do Produto"
                           >
                             <Edit size={15} />
@@ -403,27 +403,27 @@ export const TelaGestaoEstoque: React.FC = () => {
       {modalLoteAberto && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="flex max-h-[90vh] w-full max-w-4xl flex-col space-y-4 rounded-3xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-            <div className="flex justify-between items-center border-b border-gray-800 pb-3 flex-shrink-0">
+            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3 flex-shrink-0">
               <h3 className="font-bold text-base flex items-center gap-2 text-emerald-400">
                 <ListPlus size={20} /> Entrada de Estoque em Lote (Múltiplos Produtos)
               </h3>
-              <button onClick={() => setModalLoteAberto(false)} className="text-gray-400 hover:text-white">
+              <button onClick={() => setModalLoteAberto(false)} className="text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
                 <X size={20} />
               </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-hidden">
               {/* Coluna Esquerda: Buscar e Adicionar Produtos */}
-              <div className="flex flex-col border-r border-gray-800 pr-0 md:pr-4">
-                <p className="text-xs font-semibold text-gray-300 mb-2">1. Selecione os Equipamentos</p>
+              <div className="flex flex-col border-r border-slate-200 dark:border-slate-800 pr-0 md:pr-4">
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">1. Selecione os Equipamentos</p>
                 <div className="relative mb-3">
-                  <Search className="absolute left-3 top-2.5 text-gray-400" size={15} />
+                  <Search className="absolute left-3 top-2.5 text-slate-500 dark:text-slate-400" size={15} />
                   <input
                     type="text"
                     placeholder="Pesquisar produto por nome ou SKU..."
                     value={buscaLote}
                     onChange={(e) => setBuscaLote(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-gray-950 border border-gray-800 text-white focus:border-emerald-500 outline-none"
+                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-white border border-slate-200 text-slate-900 dark:bg-slate-950 dark:border-slate-800 dark:text-white focus:border-emerald-500 outline-none"
                   />
                 </div>
 
@@ -432,11 +432,11 @@ export const TelaGestaoEstoque: React.FC = () => {
                     <div
                       key={prod.id}
                       onClick={() => adicionarAoLote(prod)}
-                      className="p-2.5 rounded-xl bg-gray-950 border border-gray-800 hover:border-emerald-500/50 cursor-pointer transition flex items-center justify-between"
+                      className="p-2.5 rounded-xl bg-white border border-slate-200 dark:bg-slate-950 dark:border-slate-800 hover:border-emerald-500/50 cursor-pointer transition flex items-center justify-between"
                     >
                       <div>
-                        <p className="text-xs font-bold text-gray-200">{prod.nome}</p>
-                        <p className="text-[10px] text-gray-400">SKU: {prod.sku} | Atual: {prod.estoque_atual} {prod.unidade_comercial}</p>
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{prod.nome}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">SKU: {prod.sku} | Atual: {prod.estoque_atual} {prod.unidade_comercial}</p>
                       </div>
                       <button className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20">
                         <Plus size={14} />
@@ -449,7 +449,7 @@ export const TelaGestaoEstoque: React.FC = () => {
               {/* Coluna Direita: Lote Atual e Quantidades */}
               <div className="flex flex-col">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-gray-300">2. Defina as Quantidades a Adicionar</p>
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">2. Defina as Quantidades a Adicionar</p>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                     {itensLote.length} item(s) no lote
                   </span>
@@ -457,19 +457,19 @@ export const TelaGestaoEstoque: React.FC = () => {
 
                 <div className="overflow-y-auto flex-1 space-y-2 pr-1 max-h-[300px]">
                   {itensLote.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-6 border border-dashed border-gray-800 rounded-2xl text-gray-500 text-xs">
-                      <ListPlus size={32} className="mb-2 opacity-50 text-gray-400" />
+                    <div className="h-full flex flex-col items-center justify-center text-center p-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-slate-500 dark:text-slate-400 text-xs">
+                      <ListPlus size={32} className="mb-2 opacity-50 text-slate-500 dark:text-slate-400" />
                       Clique nos produtos da coluna ao lado para montar a lista de entrada.
                     </div>
                   ) : (
                     itensLote.map((item) => (
                       <div
                         key={item.produto.id}
-                        className="p-2.5 rounded-xl bg-gray-950 border border-gray-800 flex items-center justify-between gap-2"
+                        className="p-2.5 rounded-xl bg-white border border-slate-200 dark:bg-slate-950 dark:border-slate-800 flex items-center justify-between gap-2"
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-gray-200 truncate">{item.produto.nome}</p>
-                          <p className="text-[10px] text-gray-400">
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{item.produto.nome}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400">
                             Atual: {item.produto.estoque_atual} &rarr; <span className="text-emerald-400 font-bold">Novo: {(Number(item.produto.estoque_atual) + Number(item.quantidade)).toFixed(1)}</span>
                           </p>
                         </div>
@@ -490,7 +490,7 @@ export const TelaGestaoEstoque: React.FC = () => {
                             step="1"
                             value={item.quantidade}
                             onChange={(e) => atualizarQtdLote(item.produto.id, parseInt(e.target.value, 10) || 1)}
-                            className="w-16 p-1.5 text-center text-xs font-bold rounded-lg bg-gray-900 border border-gray-700 text-emerald-400 outline-none focus:border-emerald-500"
+                            className="w-16 p-1.5 text-center text-xs font-bold rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-emerald-400 outline-none focus:border-emerald-500"
                           />
                           <button
                             onClick={() => atualizarQtdLote(item.produto.id, item.quantidade + 1)}
@@ -499,10 +499,10 @@ export const TelaGestaoEstoque: React.FC = () => {
                           >
                             <Plus size={14} />
                           </button>
-                          <span className="text-[10px] text-gray-400 font-bold">{item.produto.unidade_comercial}</span>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">{item.produto.unidade_comercial}</span>
                           <button
                             onClick={() => removerDoLote(item.produto.id)}
-                            className="p-1 text-gray-500 hover:text-red-400 transition"
+                            className="p-1 text-slate-500 dark:text-slate-400 hover:text-red-400 transition"
                           >
                             <Trash size={14} />
                           </button>
@@ -515,11 +515,11 @@ export const TelaGestaoEstoque: React.FC = () => {
             </div>
 
             {/* Rodapé do Modal */}
-            <div className="flex items-center justify-between pt-3 border-t border-gray-800 flex-shrink-0">
+            <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800 flex-shrink-0">
               <button
                 onClick={() => setItensLote([])}
                 disabled={itensLote.length === 0}
-                className="text-xs text-gray-400 hover:text-red-400 disabled:opacity-30 transition font-bold"
+                className="text-xs text-slate-500 dark:text-slate-400 hover:text-red-400 disabled:opacity-30 transition font-bold"
               >
                 Limpar Lista
               </button>
@@ -527,7 +527,7 @@ export const TelaGestaoEstoque: React.FC = () => {
               <div className="flex gap-2">
                 <button
                   onClick={() => setModalLoteAberto(false)}
-                  className="px-4 py-2.5 rounded-xl border border-gray-800 bg-gray-950 text-gray-300 font-bold text-xs"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300 font-bold text-xs"
                 >
                   Cancelar
                 </button>
@@ -548,22 +548,22 @@ export const TelaGestaoEstoque: React.FC = () => {
       {produtoMovimentar && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="w-full max-w-sm space-y-4 rounded-3xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-            <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="font-bold text-sm flex items-center gap-2">
                 <PlusCircle className="text-emerald-400" size={18} /> Entrada de Lote no Estoque
               </h3>
-              <button onClick={() => setProdutoMovimentar(null)} className="text-gray-400 hover:text-white">
+              <button onClick={() => setProdutoMovimentar(null)} className="text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
                 <X size={18} />
               </button>
             </div>
 
             <div>
-              <p className="text-xs font-bold text-gray-200">{produtoMovimentar.nome}</p>
-              <p className="text-[10px] text-gray-400">Estoque Atual: {produtoMovimentar.estoque_atual} {produtoMovimentar.unidade_comercial}</p>
+              <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{produtoMovimentar.nome}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">Estoque Atual: {produtoMovimentar.estoque_atual} {produtoMovimentar.unidade_comercial}</p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-1">
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
                 Quantidade a ser Adicionada
               </label>
               <input
@@ -572,13 +572,13 @@ export const TelaGestaoEstoque: React.FC = () => {
                 step={produtoMovimentar.unidade_comercial === 'KG' ? '0.1' : '1'}
                 value={qtdEntrada}
                 onChange={(e) => setQtdEntrada(parseFloat(e.target.value) || 0)}
-                className="w-full p-2.5 rounded-xl border bg-gray-950 border-gray-800 text-white font-bold text-sm outline-none focus:border-emerald-500"
+                className="w-full p-2.5 rounded-xl border bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold text-sm outline-none focus:border-emerald-500"
                 autoFocus
               />
             </div>
 
-            <div className="p-3 rounded-2xl bg-gray-950 border border-gray-800 text-xs space-y-1">
-              <div className="flex justify-between text-gray-400">
+            <div className="p-3 rounded-2xl bg-white border border-slate-200 dark:bg-slate-950 dark:border-slate-800 text-xs space-y-1">
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>Novo Estoque Previsto:</span>
                 <span className="font-bold text-emerald-400">
                   {(Number(produtoMovimentar.estoque_atual) + Number(qtdEntrada || 0)).toFixed(1)} {produtoMovimentar.unidade_comercial}
@@ -589,7 +589,7 @@ export const TelaGestaoEstoque: React.FC = () => {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => setProdutoMovimentar(null)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-800 bg-gray-950 text-gray-300 font-bold text-xs"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300 font-bold text-xs"
               >
                 Cancelar
               </button>
@@ -608,84 +608,84 @@ export const TelaGestaoEstoque: React.FC = () => {
       {produtoEditar && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="w-full max-w-lg space-y-4 rounded-3xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-            <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="font-bold text-sm flex items-center gap-2">
                 <Edit className="text-red-500" size={18} /> Editar Produto
               </h3>
-              <button onClick={() => setProdutoEditar(null)} className="text-gray-400 hover:text-white">
+              <button onClick={() => setProdutoEditar(null)} className="text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
                 <X size={18} />
               </button>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="col-span-2">
-                <label className="block text-gray-400 mb-1">Nome do Produto</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">Nome do Produto</label>
                 <input
                   type="text"
                   value={formEdicao.nome || ''}
                   onChange={(e) => setFormEdicao({ ...formEdicao, nome: e.target.value })}
-                  className="w-full p-2.5 rounded-xl bg-gray-950 border border-gray-800 text-white outline-none focus:border-red-500"
+                  className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 dark:bg-slate-950 dark:border-slate-800 dark:text-white outline-none focus:border-red-500"
                 />
               </div>
 
               <div>
-                <label className="block text-gray-400 mb-1">SKU / Código</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">SKU / Código</label>
                 <input
                   type="text"
                   value={formEdicao.sku || ''}
                   onChange={(e) => setFormEdicao({ ...formEdicao, sku: e.target.value })}
-                  className="w-full p-2.5 rounded-xl bg-gray-950 border border-gray-800 text-white outline-none focus:border-red-500 font-mono"
+                  className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 dark:bg-slate-950 dark:border-slate-800 dark:text-white outline-none focus:border-red-500 font-mono"
                 />
               </div>
 
               <div>
-                <label className="block text-gray-400 mb-1">Aplicação/Modelo</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">Aplicação/Modelo</label>
                 <input
                   type="text"
                   value={formEdicao.marca || ''}
                   onChange={(e) => setFormEdicao({ ...formEdicao, marca: e.target.value })}
-                  className="w-full p-2.5 rounded-xl bg-gray-950 border border-gray-800 text-white outline-none focus:border-red-500"
+                  className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 dark:bg-slate-950 dark:border-slate-800 dark:text-white outline-none focus:border-red-500"
                 />
               </div>
 
               <div>
-                <label className="block text-gray-400 mb-1">Preço de Custo (R$)</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">Preço de Custo (R$)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={formEdicao.preco_custo || ''}
                   onChange={(e) => setFormEdicao({ ...formEdicao, preco_custo: parseFloat(e.target.value) || 0 })}
-                  className="w-full p-2.5 rounded-xl bg-gray-950 border border-gray-800 text-white outline-none focus:border-red-500"
+                  className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 dark:bg-slate-950 dark:border-slate-800 dark:text-white outline-none focus:border-red-500"
                 />
               </div>
 
               <div>
-                <label className="block text-gray-400 mb-1">Preço de Venda (R$)</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">Preço de Venda (R$)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={formEdicao.valor_preco_fixado || ''}
                   onChange={(e) => setFormEdicao({ ...formEdicao, valor_preco_fixado: parseFloat(e.target.value) || 0 })}
-                  className="w-full p-2.5 rounded-xl bg-gray-950 border border-gray-800 text-white font-bold text-red-400 outline-none focus:border-red-500"
+                  className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 dark:bg-slate-950 dark:border-slate-800 dark:text-white font-bold text-red-400 outline-none focus:border-red-500"
                 />
               </div>
 
               <div>
-                <label className="block text-gray-400 mb-1">Estoque Mínimo</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">Estoque Mínimo</label>
                 <input
                   type="number"
                   value={formEdicao.estoque_minimo || ''}
                   onChange={(e) => setFormEdicao({ ...formEdicao, estoque_minimo: parseFloat(e.target.value) || 0 })}
-                  className="w-full p-2.5 rounded-xl bg-gray-950 border border-gray-800 text-white outline-none focus:border-red-500"
+                  className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 dark:bg-slate-950 dark:border-slate-800 dark:text-white outline-none focus:border-red-500"
                 />
               </div>
 
               <div>
-                <label className="block text-gray-400 mb-1">Unidade</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">Unidade</label>
                 <select
                   value={formEdicao.unidade_comercial || 'UN'}
                   onChange={(e) => setFormEdicao({ ...formEdicao, unidade_comercial: e.target.value })}
-                  className="w-full p-2.5 rounded-xl bg-gray-950 border border-gray-800 text-white outline-none"
+                  className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 dark:bg-slate-950 dark:border-slate-800 dark:text-white outline-none"
                 >
                   <option value="UN">UN (Unidade)</option>
                   <option value="KG">KG (Quilograma)</option>
@@ -698,7 +698,7 @@ export const TelaGestaoEstoque: React.FC = () => {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => setProdutoEditar(null)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-800 bg-gray-950 text-gray-300 font-bold text-xs"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300 font-bold text-xs"
               >
                 Cancelar
               </button>
@@ -722,14 +722,14 @@ export const TelaGestaoEstoque: React.FC = () => {
               <h3 className="text-lg font-bold">Inativar Produto?</h3>
             </div>
 
-            <p className="text-xs text-gray-400 leading-relaxed">
-              O produto <strong className="text-gray-200">{produtoInativar.nome}</strong> deixará de ser exibido na lista de vendas do PDV e no catálogo ativo.
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              O produto <strong className="text-slate-800 dark:text-slate-200">{produtoInativar.nome}</strong> deixará de ser exibido na lista de vendas do PDV e no catálogo ativo.
             </p>
 
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => setProdutoInativar(null)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-800 bg-gray-950 text-gray-300 font-bold text-xs"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300 font-bold text-xs"
               >
                 Voltar
               </button>
