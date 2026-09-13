@@ -11,6 +11,7 @@
 }
 
 @layer utilities {
+  .campo { @apply mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm outline-none transition focus:border-red-500 dark:border-slate-700 dark:bg-slate-950; }
   .animate-toast-in { animation: toast-in 220ms cubic-bezier(.2,.8,.2,1) both; }
   .animate-theme-in { animation: theme-in 220ms ease-out both; }
   .animate-cart-pulse { animation: cart-pulse 700ms ease-out both; }

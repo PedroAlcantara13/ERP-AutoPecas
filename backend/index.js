@@ -4,7 +4,7 @@ const cors = require('cors');
 const pool = require('./src/config/database');
 
 const produtoRoutes = require('./src/routes/produto.routes');
-const clienteRoutes = require('./src/routes/cliente.routes');
+const pessoaRoutes = require('./src/routes/pessoa.routes');
 const vendaRoutes = require('./src/routes/venda.routes');
 
 const app = express();
@@ -33,11 +33,16 @@ app.use(express.json());
 
 // Endpoints da API
 app.use('/api/produtos', produtoRoutes);
-app.use('/api/clientes', clienteRoutes);
+app.use('/api/pessoas', pessoaRoutes);
 app.use('/api/vendas', vendaRoutes);
 
 app.get('/', (req, res) => {
   res.json({ mensagem: 'API do ERP Autopeças rodando perfeitamente!' });
+});
+
+app.use((error, req, res, next) => {
+  console.error(error);
+  res.status(error.status || 500).json({ mensagem: error.message || 'Erro interno do servidor.' });
 });
 
 // Executa app.listen APENAS em desenvolvimento local

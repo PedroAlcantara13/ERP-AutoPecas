@@ -1,95 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { Users, Plus } from 'lucide-react';
-import { clienteService, type Cliente } from '../../services/cliente.service';
+import React, { useEffect, useState } from 'react';
+import { Pencil, Plus, Trash2, Users } from 'lucide-react';
+import { pessoaService, type Pessoa } from '../../services/pessoa.service';
 import { EmptyState, TableSkeleton } from '../../components/Feedback';
 import { useToast } from '../../contexts/ToastContext';
 
+const pessoaVazia = (): Omit<Pessoa, 'id' | 'criado_em'> => ({ pessoa_fisica: true, nome_fantasia: '', cnpj_cpf: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', whatsapp: '', cliente: true, fornecedor: false });
+
 export const TelaClientes: React.FC = () => {
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [exibirModal, setExibirModal] = useState(false);
-  const [carregando, setCarregando] = useState(false);
-  const [novoCliente, setNovoCliente] = useState({ nome: '', cpf_cnpj: '', telefone: '', email: '' });
+  const [pessoas, setPessoas] = useState<Pessoa[]>([]); const [formulario, setFormulario] = useState(pessoaVazia());
+  const [editandoId, setEditandoId] = useState<number | null>(null); const [modalAberto, setModalAberto] = useState(false); const [carregando, setCarregando] = useState(false);
   const { toast } = useToast();
-
-  const carregar = async () => {
-    try {
-      setCarregando(true);
-      const dados = await clienteService.listar();
-      setClientes(dados);
-    } catch {
-      toast('Não foi possível carregar os clientes.', 'error');
-    } finally {
-      setCarregando(false);
-    }
-  };
-
+  const carregar = async () => { try { setCarregando(true); setPessoas(await pessoaService.listar()); } catch { toast('Não foi possível carregar as pessoas.', 'error'); } finally { setCarregando(false); } };
   useEffect(() => { carregar(); }, []);
+  const abrirNovo = () => { setFormulario(pessoaVazia()); setEditandoId(null); setModalAberto(true); };
+  const abrirEdicao = (pessoa: Pessoa) => { const { id, criado_em, ...dados } = pessoa; setFormulario(dados); setEditandoId(id!); setModalAberto(true); };
+  const salvar = async (event: React.FormEvent) => { event.preventDefault(); try { if (editandoId) await pessoaService.atualizar(editandoId, formulario); else await pessoaService.cadastrar(formulario); toast('Pessoa salva com sucesso.'); setModalAberto(false); carregar(); } catch (erro: any) { toast(erro.response?.data?.mensagem || 'Não foi possível salvar a pessoa.', 'error'); } };
+  const excluir = async (pessoa: Pessoa) => { if (!pessoa.id || !window.confirm(`Excluir ${pessoa.nome_fantasia}?`)) return; try { await pessoaService.excluir(pessoa.id); toast('Pessoa excluída.'); carregar(); } catch (erro: any) { toast(erro.response?.data?.mensagem || 'Não foi possível excluir a pessoa.', 'error'); } };
+  const atualizar = <K extends keyof typeof formulario>(campo: K, valor: (typeof formulario)[K]) => setFormulario({ ...formulario, [campo]: valor });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await clienteService.cadastrar(novoCliente);
-      toast('Cliente cadastrado com sucesso.');
-      setExibirModal(false);
-      setNovoCliente({ nome: '', cpf_cnpj: '', telefone: '', email: '' });
-      carregar();
-    } catch (err: any) {
-      toast(err.response?.data?.mensagem || 'Erro ao cadastrar cliente.', 'error');
-    }
-  };
-
-  return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Users className="text-red-500" /> Cadastro de Clientes
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Base de clientes e compradores</p>
-        </div>
-        <button onClick={() => setExibirModal(true)} className="px-4 py-2 bg-red-600 hover:bg-red-700 font-bold text-sm rounded-xl flex items-center gap-2">
-          <Plus size={18} /> Novo Cliente
-        </button>
-      </div>
-
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-xl shadow-slate-200/30 dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-black/10">
-        <table className="w-full text-left text-sm">
-          <thead className="sticky top-0 border-b border-slate-200 bg-slate-100/95 text-xs uppercase text-slate-500 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-400">
-            <tr>
-              <th className="p-4">Nome</th>
-              <th className="p-4">CPF/CNPJ</th>
-              <th className="p-4">Telefone</th>
-              <th className="p-4">E-mail</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {carregando ? <TableSkeleton columns={4} /> : clientes.length === 0 ? <tr><td colSpan={4}><EmptyState title="Nenhum cliente cadastrado" description="Registre o primeiro cliente para agilizar as próximas vendas." action={<button onClick={() => setExibirModal(true)} className="rounded-xl bg-red-600 px-3 py-2 text-xs font-bold text-white">Cadastrar cliente</button>} /></td></tr> : clientes.map((c) => (
-              <tr key={c.id} className="transition odd:bg-slate-50/70 hover:bg-red-50 dark:odd:bg-slate-950/25 dark:hover:bg-red-500/5">
-                <td className="p-4 font-semibold">{c.nome}</td>
-                <td className="p-4 font-mono text-slate-500 dark:text-slate-400">{c.cpf_cnpj || '-'}</td>
-                <td className="p-4">{c.telefone || '-'}</td>
-                <td className="p-4 text-slate-500 dark:text-slate-400">{c.email || '-'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {exibirModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleSubmit} className="w-full max-w-md space-y-4 rounded-3xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-            <h2 className="text-lg font-bold">Cadastrar Cliente</h2>
-            <input required placeholder="Nome Completo" value={novoCliente.nome} className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950" onChange={e => setNovoCliente({ ...novoCliente, nome: e.target.value })} />
-            <input placeholder="CPF ou CNPJ" value={novoCliente.cpf_cnpj} className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950" onChange={e => setNovoCliente({ ...novoCliente, cpf_cnpj: e.target.value })} />
-            <input placeholder="Telefone / WhatsApp" value={novoCliente.telefone} className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950" onChange={e => setNovoCliente({ ...novoCliente, telefone: e.target.value })} />
-            <input type="email" placeholder="E-mail" value={novoCliente.email} className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950" onChange={e => setNovoCliente({ ...novoCliente, email: e.target.value })} />
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setExibirModal(false)} className="rounded-xl bg-slate-100 px-4 py-2 dark:bg-slate-800">Cancelar</button>
-              <button type="submit" className="px-4 py-2 bg-red-600 font-bold rounded-xl">Salvar</button>
-            </div>
-          </form>
-        </div>
-      )}
-    </div>
-  );
+  return <div className="mx-auto max-w-7xl space-y-6 p-6">
+    <div className="flex items-center justify-between"><div><h1 className="flex items-center gap-2 text-2xl font-bold"><Users className="text-red-500" /> Pessoas</h1><p className="text-xs text-slate-500 dark:text-slate-400">Clientes e fornecedores em um único cadastro</p></div><button onClick={abrirNovo} className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white"><Plus size={18} /> Nova pessoa</button></div>
+    <div className="overflow-x-auto rounded-3xl border border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/40"><table className="w-full text-left text-sm"><thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-900"><tr><th className="p-4">Nome</th><th className="p-4">Documento</th><th className="p-4">WhatsApp</th><th className="p-4">Cidade</th><th className="p-4">Tipo</th><th className="p-4">Ações</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{carregando ? <TableSkeleton columns={6} /> : !pessoas.length ? <tr><td colSpan={6}><EmptyState title="Nenhuma pessoa cadastrada" description="Cadastre clientes ou fornecedores para começar." /></td></tr> : pessoas.map(pessoa => <tr key={pessoa.id}><td className="p-4 font-semibold">{pessoa.nome_fantasia}<small className="ml-2 text-slate-400">{pessoa.pessoa_fisica ? 'PF' : 'PJ'}</small></td><td className="p-4 font-mono">{pessoa.cnpj_cpf || '-'}</td><td className="p-4">{pessoa.whatsapp || '-'}</td><td className="p-4">{pessoa.cidade || '-'}</td><td className="p-4">{pessoa.cliente && <span className="mr-1 rounded bg-blue-100 px-2 py-1 text-xs text-blue-700">Cliente</span>}{pessoa.fornecedor && <span className="rounded bg-amber-100 px-2 py-1 text-xs text-amber-700">Fornecedor</span>}</td><td className="flex gap-2 p-4"><button onClick={() => abrirEdicao(pessoa)} aria-label="Editar pessoa"><Pencil size={16} /></button><button onClick={() => excluir(pessoa)} className="text-red-600" aria-label="Excluir pessoa"><Trash2 size={16} /></button></td></tr>)}</tbody></table></div>
+    {modalAberto && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"><form onSubmit={salvar} className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 text-slate-900 dark:bg-slate-900 dark:text-white"><h2 className="mb-4 text-lg font-bold">{editandoId ? 'Editar pessoa' : 'Nova pessoa'}</h2><div className="grid gap-3 md:grid-cols-2"><label>Nome / Razão social<input required value={formulario.nome_fantasia} onChange={e => atualizar('nome_fantasia', e.target.value)} className="campo" /></label><label>{formulario.pessoa_fisica ? 'CPF' : 'CNPJ'}<input value={formulario.cnpj_cpf || ''} onChange={e => atualizar('cnpj_cpf', e.target.value)} className="campo" /></label><label>WhatsApp<input value={formulario.whatsapp || ''} onChange={e => atualizar('whatsapp', e.target.value)} className="campo" /></label><label>Logradouro<input value={formulario.logradouro || ''} onChange={e => atualizar('logradouro', e.target.value)} className="campo" /></label><label>Número<input value={formulario.numero || ''} onChange={e => atualizar('numero', e.target.value)} className="campo" /></label><label>Complemento<input value={formulario.complemento || ''} onChange={e => atualizar('complemento', e.target.value)} className="campo" /></label><label>Bairro<input value={formulario.bairro || ''} onChange={e => atualizar('bairro', e.target.value)} className="campo" /></label><label>Cidade<input value={formulario.cidade || ''} onChange={e => atualizar('cidade', e.target.value)} className="campo" /></label></div><div className="mt-4 flex flex-wrap gap-5 text-sm"><label><input type="checkbox" checked={formulario.pessoa_fisica} onChange={e => atualizar('pessoa_fisica', e.target.checked)} /> Pessoa física</label><label><input type="checkbox" checked={formulario.cliente} onChange={e => atualizar('cliente', e.target.checked)} /> Cliente</label><label><input type="checkbox" checked={formulario.fornecedor} onChange={e => atualizar('fornecedor', e.target.checked)} /> Fornecedor</label></div><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setModalAberto(false)} className="rounded-xl bg-slate-200 px-4 py-2 dark:bg-slate-700">Cancelar</button><button className="rounded-xl bg-red-600 px-4 py-2 font-bold text-white">Salvar</button></div></form></div>}
+  </div>;
 };

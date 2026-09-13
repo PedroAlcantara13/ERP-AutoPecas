@@ -1,178 +1,66 @@
-// backend/src/services/produto.service.js
 const pool = require('../config/database');
 
-async function garantirColunaAtivo() {
-  await pool.query(`ALTER TABLE produtos ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT true`);
+const campos = ['nome', 'marca', 'fornecedor_padrao', 'codigo_nfe', 'codigo_fornecedor_padrao', 'ean', 'ncm', 'cfop', 'preco_custo', 'valor_preco_fixado', 'unidade_comercial', 'sku', 'estoque_atual', 'estoque_minimo'];
+
+function texto(valor) { return typeof valor === 'string' && valor.trim() ? valor.trim() : null; }
+function numero(valor, padrao = 0) {
+  if (valor === undefined || valor === null || valor === '') return padrao;
+  const convertido = Number(valor);
+  if (!Number.isFinite(convertido)) { const erro = new Error('Os campos numéricos devem conter valores válidos.'); erro.status = 400; throw erro; }
+  return convertido;
 }
+function normalizar(dados = {}) {
+  return { nome: texto(dados.nome), marca: texto(dados.marca), fornecedor_padrao: texto(dados.fornecedor_padrao), codigo_nfe: texto(dados.codigo_nfe), codigo_fornecedor_padrao: texto(dados.codigo_fornecedor_padrao), ean: texto(dados.ean), ncm: texto(dados.ncm), cfop: texto(dados.cfop), preco_custo: numero(dados.preco_custo), valor_preco_fixado: numero(dados.valor_preco_fixado), unidade_comercial: texto(dados.unidade_comercial) || 'UN', sku: texto(dados.sku), estoque_atual: numero(dados.estoque_atual), estoque_minimo: numero(dados.estoque_minimo) };
+}
+function validar(produto) {
+  if (!produto.nome || produto.valor_preco_fixado < 0 || produto.preco_custo < 0 || produto.estoque_atual < 0 || produto.estoque_minimo < 0) { const erro = new Error('Nome é obrigatório e valores monetários/estoques não podem ser negativos.'); erro.status = 400; throw erro; }
+}
+function tratarErroUnico(erro) { if (erro.code === '23505') { erro.message = 'Já existe um produto cadastrado com este SKU.'; erro.status = 400; } return erro; }
 
 async function listarProdutos(filtros = {}) {
-  await garantirColunaAtivo();
-  const { busca, somenteBaixoEstoque } = filtros;
-
-  let sql = `
-    SELECT 
-      id,
-      nome,
-      sku,
-      codigo_interno,
-      modelo_aplicacao,
-      valor_custo,
-      valor_venda,
-      estoque_atual,
-      estoque_minimo,
-      unidade_medida,
-      COALESCE(ativo, true) AS ativo,
-      criado_em
-    FROM produtos
-    WHERE COALESCE(ativo, true) = true
-  `;
-  const params = [];
-
-  if (busca && busca.trim()) {
-    params.push(`%${busca.trim().toLowerCase()}%`);
-    const idx = params.length;
-    sql += ` AND (
-      LOWER(nome) LIKE $${idx} OR 
-      LOWER(sku) LIKE $${idx} OR 
-      LOWER(COALESCE(codigo_interno, '')) LIKE $${idx} OR 
-      LOWER(COALESCE(modelo_aplicacao, '')) LIKE $${idx}
-    )`;
+  const valores = [];
+  const condicoes = ['ativo = true'];
+  if (filtros.busca?.trim()) {
+    valores.push(`%${filtros.busca.trim()}%`);
+    const indice = valores.length;
+    condicoes.push(`(nome ILIKE $${indice} OR COALESCE(sku, '') ILIKE $${indice} OR COALESCE(ean, '') ILIKE $${indice} OR COALESCE(codigo_nfe, '') ILIKE $${indice})`);
   }
-
-  if (somenteBaixoEstoque === 'true') {
-    sql += ` AND estoque_atual <= estoque_minimo`;
-  }
-
-  sql += ` ORDER BY nome ASC`;
-
-  const { rows } = await pool.query(sql, params);
+  if (filtros.somenteBaixoEstoque === 'true' || filtros.somenteBaixoEstoque === true) condicoes.push('estoque_atual <= estoque_minimo');
+  const { rows } = await pool.query(`SELECT ${campos.join(', ')}, id, ativo, criado_em FROM produtos WHERE ${condicoes.join(' AND ')} ORDER BY nome ASC`, valores);
   return rows;
 }
 
 async function cadastrarProduto(dados) {
-  await garantirColunaAtivo();
-  const { nome, sku, marca, codigo_interno, modelo_aplicacao, unidade_medida, valor_custo, valor_venda, estoque_atual, estoque_minimo } = dados;
-  if (!nome || !sku || valor_venda === undefined || valor_venda === '') {
-    const err = new Error('Nome, SKU e preço de venda são obrigatórios.');
-    err.status = 400;
-    throw err;
-  }
-  const { rows } = await pool.query(`
-    INSERT INTO produtos (nome, sku, marca, codigo_interno, modelo_aplicacao, unidade_medida, valor_custo, valor_venda, estoque_atual, estoque_minimo, ativo)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true)
-    RETURNING *
-  `, [nome.trim(), sku.trim(), marca || null, codigo_interno || null, modelo_aplicacao || null, unidade_medida || 'UN', Number(valor_custo) || 0, Number(valor_venda), Number(estoque_atual) || 0, Number(estoque_minimo) || 0]);
-  return rows[0];
+  const produto = normalizar(dados); validar(produto);
+  try {
+    const { rows } = await pool.query(`INSERT INTO produtos (${campos.join(', ')}, ativo) VALUES (${campos.map((_, indice) => `$${indice + 1}`).join(', ')}, true) RETURNING *`, campos.map((campo) => produto[campo]));
+    return rows[0];
+  } catch (erro) { throw tratarErroUnico(erro); }
 }
-
 async function obterProdutoPorId(id) {
-  await garantirColunaAtivo();
   const { rows } = await pool.query('SELECT * FROM produtos WHERE id = $1', [id]);
-  if (rows.length === 0) {
-    const err = new Error('Produto não encontrado.');
-    err.status = 404;
-    throw err;
-  }
+  if (!rows[0]) { const erro = new Error('Produto não encontrado.'); erro.status = 404; throw erro; }
   return rows[0];
 }
-
 async function atualizarProduto(id, dados) {
-  await garantirColunaAtivo();
-  const {
-    nome,
-    sku,
-    codigo_interno,
-    modelo_aplicacao,
-    valor_custo,
-    valor_venda,
-    estoque_minimo,
-    unidade_medida
-  } = dados;
-
-  const sql = `
-    UPDATE produtos
-    SET 
-      nome = $1,
-      sku = $2,
-      codigo_interno = $3,
-      modelo_aplicacao = $4,
-      valor_custo = $5,
-      valor_venda = $6,
-      estoque_minimo = $7,
-      unidade_medida = $8
-    WHERE id = $9 AND COALESCE(ativo, true) = true
-    RETURNING *
-  `;
-
-  const { rows } = await pool.query(sql, [
-    nome,
-    sku,
-    codigo_interno || null,
-    modelo_aplicacao || null,
-    Number(valor_custo) || 0,
-    Number(valor_venda),
-    Number(estoque_minimo) || 0,
-    unidade_medida || 'UN',
-    id
-  ]);
-
-  if (rows.length === 0) {
-    const err = new Error('Produto não encontrado ou inativo.');
-    err.status = 404;
-    throw err;
-  }
-
-  return rows[0];
+  const produto = normalizar(dados); validar(produto);
+  try {
+    const valores = [...campos.map((campo) => produto[campo]), id];
+    const { rows } = await pool.query(`UPDATE produtos SET ${campos.map((campo, indice) => `${campo} = $${indice + 1}`).join(', ')} WHERE id = $${valores.length} AND ativo = true RETURNING *`, valores);
+    if (!rows[0]) { const erro = new Error('Produto não encontrado ou inativo.'); erro.status = 404; throw erro; }
+    return rows[0];
+  } catch (erro) { throw tratarErroUnico(erro); }
 }
-
 async function adicionarEstoque(id, quantidade) {
-  await garantirColunaAtivo();
-  const qtd = Number(quantidade);
-
-  if (isNaN(qtd) || qtd <= 0) {
-    const err = new Error('A quantidade de entrada deve ser maior que zero.');
-    err.status = 400;
-    throw err;
-  }
-
-  const { rows } = await pool.query(
-    `UPDATE produtos 
-     SET estoque_atual = estoque_atual + $1 
-     WHERE id = $2 AND COALESCE(ativo, true) = true 
-     RETURNING *`,
-    [qtd, id]
-  );
-
-  if (rows.length === 0) {
-    const err = new Error('Produto não encontrado ou inativo.');
-    err.status = 404;
-    throw err;
-  }
-
+  const qtd = numero(quantidade);
+  if (qtd <= 0) { const erro = new Error('A quantidade de entrada deve ser maior que zero.'); erro.status = 400; throw erro; }
+  const { rows } = await pool.query('UPDATE produtos SET estoque_atual = estoque_atual + $1 WHERE id = $2 AND ativo = true RETURNING *', [qtd, id]);
+  if (!rows[0]) { const erro = new Error('Produto não encontrado ou inativo.'); erro.status = 404; throw erro; }
   return rows[0];
 }
-
 async function inativarProduto(id) {
-  await garantirColunaAtivo();
-  const { rows } = await pool.query(
-    'UPDATE produtos SET ativo = false WHERE id = $1 RETURNING id',
-    [id]
-  );
-
-  if (rows.length === 0) {
-    const err = new Error('Produto não encontrado.');
-    err.status = 404;
-    throw err;
-  }
-
-  return { mensagem: 'Produto inativado/removido do estoque com sucesso!' };
+  const { rows } = await pool.query('UPDATE produtos SET ativo = false WHERE id = $1 RETURNING id', [id]);
+  if (!rows[0]) { const erro = new Error('Produto não encontrado.'); erro.status = 404; throw erro; }
+  return { mensagem: 'Produto inativado com sucesso.' };
 }
-
-module.exports = {
-  cadastrarProduto,
-  listarProdutos,
-  obterProdutoPorId,
-  atualizarProduto,
-  adicionarEstoque,
-  inativarProduto
-};
+module.exports = { cadastrarProduto, listarProdutos, obterProdutoPorId, atualizarProduto, adicionarEstoque, inativarProduto };

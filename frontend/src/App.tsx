@@ -8,14 +8,14 @@ import { TelaClientes } from './pages/Clientes';
 import { TelaProdutos } from './pages/Produtos';
 import { TelaHistoricoVendas } from './pages/Vendas';
 import { produtoService, type Produto } from './services/produto.service';
-import { clienteService, type Cliente } from './services/cliente.service';
+import { pessoaService, type Pessoa } from './services/pessoa.service';
 
 function App() {
   const [abaAtiva, setAbaAtiva] = useState<AbaNavegacao>('pdv');
   const [paletteAberta, setPaletteAberta] = useState(false);
   const [consulta, setConsulta] = useState('');
   const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clientes, setClientes] = useState<Pessoa[]>([]);
 
   useEffect(() => {
     const abrirPalette = (event: KeyboardEvent) => {
@@ -30,7 +30,7 @@ function App() {
 
   useEffect(() => {
     if (!paletteAberta || produtos.length || clientes.length) return;
-    Promise.all([produtoService.listar(), clienteService.listar()])
+    Promise.all([produtoService.listar(), pessoaService.listar()])
       .then(([listaProdutos, listaClientes]) => { setProdutos(listaProdutos); setClientes(listaClientes); })
       .catch(() => undefined);
   }, [paletteAberta, produtos.length, clientes.length]);
@@ -41,8 +41,8 @@ function App() {
     setConsulta('');
   };
   const termo = consulta.toLowerCase().trim();
-  const produtosEncontrados = termo ? produtos.filter(item => `${item.nome} ${item.sku}`.toLowerCase().includes(termo)).slice(0, 4) : [];
-  const clientesEncontrados = termo ? clientes.filter(item => `${item.nome} ${item.cpf_cnpj ?? ''}`.toLowerCase().includes(termo)).slice(0, 3) : [];
+  const produtosEncontrados = termo ? produtos.filter(item => `${item.nome} ${item.sku} ${item.ean ?? ''}`.toLowerCase().includes(termo)).slice(0, 4) : [];
+  const clientesEncontrados = termo ? clientes.filter(item => `${item.nome_fantasia} ${item.cnpj_cpf ?? ''}`.toLowerCase().includes(termo)).slice(0, 3) : [];
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-red-500 selection:text-white dark:bg-slate-950 dark:text-slate-100 flex flex-col transition-colors duration-300">
@@ -68,8 +68,8 @@ function App() {
           <div className="max-h-[55vh] overflow-y-auto p-3">
             {!termo && <><p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Navegação rápida</p>
               {[['pdv', 'PDV Balcão', ShoppingCart], ['estoque', 'Estoque', Package], ['produtos', 'Produtos', Boxes], ['clientes', 'Clientes', Users], ['vendas', 'Histórico de vendas', FileText]].map(([id, label, Icon]) => { const ItemIcon = Icon as typeof ShoppingCart; return <button key={id as string} onClick={() => navegar(id as AbaNavegacao)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-red-50 hover:text-red-700 dark:text-slate-200 dark:hover:bg-red-500/10 dark:hover:text-red-300"><ItemIcon size={18} /><span className="flex-1">{label as string}</span><span className="text-xs text-slate-400">Abrir</span></button>; })}</>}
-            {produtosEncontrados.length > 0 && <PaletteGroup title="Produtos" items={produtosEncontrados.map(item => ({ title: item.nome, detail: `${item.sku} · R$ ${Number(item.valor_venda).toFixed(2)}` }))} onClick={() => navegar('pdv')} />}
-            {clientesEncontrados.length > 0 && <PaletteGroup title="Clientes" items={clientesEncontrados.map(item => ({ title: item.nome, detail: item.cpf_cnpj || item.telefone || 'Cliente cadastrado' }))} onClick={() => navegar('clientes')} />}
+            {produtosEncontrados.length > 0 && <PaletteGroup title="Produtos" items={produtosEncontrados.map(item => ({ title: item.nome, detail: `${item.sku || '-'} · R$ ${Number(item.valor_preco_fixado).toFixed(2)}` }))} onClick={() => navegar('pdv')} />}
+            {clientesEncontrados.length > 0 && <PaletteGroup title="Clientes" items={clientesEncontrados.map(item => ({ title: item.nome_fantasia, detail: item.cnpj_cpf || item.whatsapp || 'Pessoa cadastrado' }))} onClick={() => navegar('clientes')} />}
             {termo && !produtosEncontrados.length && !clientesEncontrados.length && <p className="px-3 py-8 text-center text-sm text-slate-500">Nada encontrado para “{consulta}”.</p>}
           </div>
           <div className="flex gap-3 border-t border-slate-200 px-5 py-3 text-[11px] text-slate-400 dark:border-slate-800"><span className="flex items-center gap-1"><Command size={12} /> K</span><span>para abrir de qualquer tela</span></div>

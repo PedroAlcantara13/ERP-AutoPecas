@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, ShoppingCart, Trash2, Printer, AlertTriangle, RefreshCw, User, DollarSign, X, Check, Minus, Plus, Volume2, VolumeX } from 'lucide-react';
 import { produtoService, type Produto } from '../../services/produto.service';
-import { clienteService, type Cliente } from '../../services/cliente.service';
+import { pessoaService, type Pessoa } from '../../services/pessoa.service';
 import { vendaService } from '../../services/venda.service';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -27,9 +27,9 @@ interface DadosComprovante {
 export const TelaPDVBalcao: React.FC = () => {
   const [busca, setBusca] = useState('');
   const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clientes, setClientes] = useState<Pessoa[]>([]);
   
-  // Estado do Cliente da Venda
+  // Estado do Pessoa da Venda
   const [clienteId, setClienteId] = useState<number | null>(null);
   const [buscaCliente, setBuscaCliente] = useState('');
   const [dropdownClienteAberto, setDropdownClienteAberto] = useState(false);
@@ -56,7 +56,7 @@ export const TelaPDVBalcao: React.FC = () => {
       setAlertaErro(null);
       const [prods, clis] = await Promise.all([
         produtoService.listar(),
-        clienteService.listar()
+        pessoaService.listar({ cliente: true })
       ]);
       setProdutos(prods);
       setClientes(clis);
@@ -86,11 +86,11 @@ export const TelaPDVBalcao: React.FC = () => {
       if (!item) return;
       if (event.key === 'ArrowUp' || event.key === 'F2') {
         event.preventDefault();
-        atualizarQuantidade(item.produto.id, item.quantidade + (item.produto.unidade_medida === 'KG' ? 0.1 : 1));
+        atualizarQuantidade(item.produto.id, item.quantidade + (item.produto.unidade_comercial === 'KG' ? 0.1 : 1));
       }
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        atualizarQuantidade(item.produto.id, item.quantidade - (item.produto.unidade_medida === 'KG' ? 0.1 : 1));
+        atualizarQuantidade(item.produto.id, item.quantidade - (item.produto.unidade_comercial === 'KG' ? 0.1 : 1));
       }
     };
     window.addEventListener('keydown', atalhoQuantidade);
@@ -115,7 +115,7 @@ export const TelaPDVBalcao: React.FC = () => {
     setSomAtivo(atual => { localStorage.setItem('pdv-som', String(!atual)); return !atual; });
   };
 
-  // Cliente selecionado atualmente
+  // Pessoa selecionado atualmente
   const clienteSelecionado = useMemo(() => {
     return clientes.find(c => c.id === clienteId) || null;
   }, [clienteId, clientes]);
@@ -125,9 +125,9 @@ export const TelaPDVBalcao: React.FC = () => {
     if (!buscaCliente.trim()) return clientes.slice(0, 5);
     const termo = buscaCliente.toLowerCase();
     return clientes.filter(c =>
-      c.nome.toLowerCase().includes(termo) ||
-      (c.cpf_cnpj && c.cpf_cnpj.toLowerCase().includes(termo)) ||
-      (c.telefone && c.telefone.toLowerCase().includes(termo))
+      c.nome_fantasia.toLowerCase().includes(termo) ||
+      (c.cnpj_cpf && c.cnpj_cpf.toLowerCase().includes(termo)) ||
+      (c.whatsapp && c.whatsapp.toLowerCase().includes(termo))
     );
   }, [buscaCliente, clientes]);
 
@@ -136,9 +136,10 @@ export const TelaPDVBalcao: React.FC = () => {
     const termo = busca.toLowerCase();
     return produtos.filter(p =>
       p.nome.toLowerCase().includes(termo) ||
-      p.sku.toLowerCase().includes(termo) ||
-      (p.codigo_interno && p.codigo_interno.toLowerCase().includes(termo)) ||
-      (p.modelo_aplicacao && p.modelo_aplicacao.toLowerCase().includes(termo))
+      (p.sku && p.sku.toLowerCase().includes(termo)) ||
+      (p.ean && p.ean.toLowerCase().includes(termo)) ||
+      (p.codigo_nfe && p.codigo_nfe.toLowerCase().includes(termo)) ||
+      (p.marca && p.marca.toLowerCase().includes(termo))
     );
   }, [busca, produtos]);
 
@@ -146,11 +147,11 @@ export const TelaPDVBalcao: React.FC = () => {
     setAlertaErro(null);
     const itemExistente = carrinho.find(i => i.produto.id === produto.id);
     const qtdAtual = itemExistente ? itemExistente.quantidade : 0;
-    const passo = produto.unidade_medida === 'KG' ? 0.5 : 1;
+    const passo = produto.unidade_comercial === 'KG' ? 0.5 : 1;
     const novaQtd = qtdAtual + passo;
 
     if (novaQtd > Number(produto.estoque_atual)) {
-      setAlertaErro(`Estoque insuficiente! Disponível: ${produto.estoque_atual} ${produto.unidade_medida}`);
+      setAlertaErro(`Estoque insuficiente! Disponível: ${produto.estoque_atual} ${produto.unidade_comercial}`);
       return;
     }
 
@@ -191,7 +192,7 @@ export const TelaPDVBalcao: React.FC = () => {
     if (itemSelecionado === produtoId) setItemSelecionado(null);
   };
 
-  const subtotal = carrinho.reduce((acc, item) => acc + (Number(item.produto.valor_venda) * item.quantidade), 0);
+  const subtotal = carrinho.reduce((acc, item) => acc + (Number(item.produto.valor_preco_fixado) * item.quantidade), 0);
   const desconto = tipoDesconto === 'percentual'
     ? subtotal * Math.min(100, Math.max(0, descontoInformado)) / 100
     : Math.min(subtotal, Math.max(0, descontoInformado));
@@ -226,12 +227,12 @@ export const TelaPDVBalcao: React.FC = () => {
       setComprovante({
         vendaId: res.venda_id,
         data: new Date(res.data).toLocaleString('pt-BR'),
-        clienteNome: clienteSelecionado ? clienteSelecionado.nome : 'Cliente Avulso (Balcão)',
+        clienteNome: clienteSelecionado ? clienteSelecionado.nome_fantasia : 'Cliente Avulso (Balcão)',
         itens: carrinho.map(item => ({
           nome: item.produto.nome,
           quantidade: item.quantidade,
-          valorUnitario: Number(item.produto.valor_venda),
-          subtotal: Number(item.produto.valor_venda) * item.quantidade
+          valorUnitario: Number(item.produto.valor_preco_fixado),
+          subtotal: Number(item.produto.valor_preco_fixado) * item.quantidade
         })),
         subtotal,
         desconto,
@@ -349,15 +350,15 @@ export const TelaPDVBalcao: React.FC = () => {
                         </span>
                       </div>
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        Aplicação: {prod.modelo_aplicacao || 'Geral'}
+                        Aplicação: {prod.marca || 'Geral'}
                       </p>
                     </div>
                     <div className="text-right">
                       <span className="text-base font-bold text-red-500">
-                        R$ {Number(prod.valor_venda).toFixed(2)}
+                        R$ {Number(prod.valor_preco_fixado).toFixed(2)}
                       </span>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Estoque: {prod.estoque_atual} {prod.unidade_medida}
+                        Estoque: {prod.estoque_atual} {prod.unidade_comercial}
                       </p>
                     </div>
                   </div>
@@ -381,17 +382,17 @@ export const TelaPDVBalcao: React.FC = () => {
               {/* PESQUISA DE CLIENTE (Substituindo o dropdown) */}
               <div className="mb-3 relative">
                 <label className="mb-1 flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  <User size={14} /> Cliente da Venda
+                  <User size={14} /> Pessoa da Venda
                 </label>
 
                 {clienteSelecionado ? (
-                  /* Card do Cliente Selecionado */
+                  /* Card do Pessoa Selecionado */
                   <div className="flex items-center justify-between rounded-xl border border-red-500/40 bg-red-500/10 p-2.5 text-slate-900 dark:text-slate-100">
                     <div>
-                      <p className="text-xs font-bold">{clienteSelecionado.nome}</p>
+                      <p className="text-xs font-bold">{clienteSelecionado.nome_fantasia}</p>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                        {clienteSelecionado.cpf_cnpj ? `CPF/CNPJ: ${clienteSelecionado.cpf_cnpj}` : 'Sem documento'}
-                        {clienteSelecionado.telefone ? ` | Tel: ${clienteSelecionado.telefone}` : ''}
+                        {clienteSelecionado.cnpj_cpf ? `CPF/CNPJ: ${clienteSelecionado.cnpj_cpf}` : 'Sem documento'}
+                        {clienteSelecionado.whatsapp ? ` | Tel: ${clienteSelecionado.whatsapp}` : ''}
                       </p>
                     </div>
                     <button
@@ -403,7 +404,7 @@ export const TelaPDVBalcao: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  /* Input de Busca de Cliente */
+                  /* Input de Busca de Pessoa */
                   <div className="relative">
                     <input
                       type="text"
@@ -436,7 +437,7 @@ export const TelaPDVBalcao: React.FC = () => {
                           }}
                           className="flex cursor-pointer items-center justify-between border-b border-slate-100 p-2 text-xs hover:bg-red-500/10 dark:border-slate-800"
                         >
-                          <span className="font-semibold text-slate-500 dark:text-slate-400">Cliente Avulso (Balcão)</span>
+                          <span className="font-semibold text-slate-500 dark:text-slate-400">Pessoa Avulso (Balcão)</span>
                           {!clienteId && <Check size={14} className="text-red-500" />}
                         </div>
 
@@ -454,9 +455,9 @@ export const TelaPDVBalcao: React.FC = () => {
                               className="flex cursor-pointer items-center justify-between border-b border-slate-100 p-2.5 text-xs transition hover:bg-red-500/10 dark:border-slate-800/40"
                             >
                               <div>
-                                <p className="font-bold">{cli.nome}</p>
+                                <p className="font-bold">{cli.nome_fantasia}</p>
                                 <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                                  {cli.cpf_cnpj || 'Sem CPF'} {cli.telefone ? `• ${cli.telefone}` : ''}
+                                  {cli.cnpj_cpf || 'Sem CPF'} {cli.whatsapp ? `• ${cli.whatsapp}` : ''}
                                 </p>
                               </div>
                               {clienteId === cli.id && <Check size={14} className="text-red-500" />}
@@ -478,7 +479,7 @@ export const TelaPDVBalcao: React.FC = () => {
                     <div key={produto.id} onClick={() => setItemSelecionado(produto.id)} className={`flex cursor-pointer items-center justify-between rounded-2xl border p-2.5 transition ${itemSelecionado === produto.id ? 'border-red-400 bg-red-50 dark:bg-red-500/10' : 'border-slate-200 bg-slate-50 dark:border-slate-800/80 dark:bg-slate-950/30'} ${itemAnimado === produto.id ? 'animate-cart-pulse' : ''}`}>
                       <div className="flex-1 pr-2">
                         <p className="text-xs font-medium line-clamp-1">{produto.nome}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">R$ {Number(produto.valor_venda).toFixed(2)} / {produto.unidade_medida}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">R$ {Number(produto.valor_preco_fixado).toFixed(2)} / {produto.unidade_comercial}</p>
                       </div>
                       <QuantityControl produto={produto} quantidade={quantidade} inputRef={element => { quantidadeInputRefs.current[produto.id] = element; }} onChange={novaQuantidade => atualizarQuantidade(produto.id, novaQuantidade)} onRemove={() => removerDoCarrinho(produto.id)} />
                     </div>
@@ -590,7 +591,7 @@ export const TelaPDVBalcao: React.FC = () => {
               </div>
 
               <div>
-                <p><span className="font-bold">Cliente:</span> {comprovante.clienteNome}</p>
+                <p><span className="font-bold">Pessoa:</span> {comprovante.clienteNome}</p>
               </div>
 
               <div className="border-b border-t border-dashed border-gray-400 py-2 space-y-1">
@@ -648,7 +649,7 @@ function QuantityControl({ produto, quantidade, inputRef, onChange, onRemove }: 
   onChange: (quantidade: number) => void;
   onRemove: () => void;
 }) {
-  const passo = produto.unidade_medida === 'KG' ? 0.1 : 1;
+  const passo = produto.unidade_comercial === 'KG' ? 0.1 : 1;
   const ajustar = (diferenca: number) => onChange(Number((quantidade + diferenca).toFixed(2)));
   return <div className="flex shrink-0 flex-col items-end gap-1.5">
     <div className="flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">

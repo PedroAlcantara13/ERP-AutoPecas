@@ -1,62 +1,68 @@
--- Remove tabelas antigas se existirem para recriar do zero
+-- Esquema PostgreSQL do ERP Autopeças.
+-- ATENÇÃO: este script recria as tabelas e remove os dados existentes.
 DROP TABLE IF EXISTS itens_venda CASCADE;
 DROP TABLE IF EXISTS vendas CASCADE;
-DROP TABLE IF EXISTS clientes CASCADE;
+DROP TABLE IF EXISTS pessoas CASCADE;
 DROP TABLE IF EXISTS produtos CASCADE;
 
--- Tabela de Produtos
+CREATE TABLE pessoas (
+    id SERIAL PRIMARY KEY,
+    pessoa_fisica BOOLEAN DEFAULT TRUE,
+    nome_fantasia VARCHAR(255) NOT NULL,
+    cnpj_cpf VARCHAR(20) UNIQUE,
+    logradouro VARCHAR(255),
+    numero VARCHAR(20),
+    complemento VARCHAR(255),
+    bairro VARCHAR(100),
+    cidade VARCHAR(100),
+    whatsapp VARCHAR(20),
+    cliente BOOLEAN DEFAULT TRUE,
+    fornecedor BOOLEAN DEFAULT FALSE,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE produtos (
     id SERIAL PRIMARY KEY,
     nome VARCHAR(255) NOT NULL,
-    tipo VARCHAR(50) DEFAULT 'PECA',
-    categoria VARCHAR(100) DEFAULT 'GERAL',
-    codigo_interno VARCHAR(50),
-    sku VARCHAR(50) UNIQUE NOT NULL,
     marca VARCHAR(100),
-    modelo_aplicacao VARCHAR(255),
-    validade_dias INT DEFAULT 0,
-    unidade_medida VARCHAR(10) DEFAULT 'UN',
-    valor_custo DECIMAL(10, 2) DEFAULT 0.00,
-    valor_venda DECIMAL(10, 2) NOT NULL,
-    estoque_atual DECIMAL(10, 3) DEFAULT 0.000,
-    estoque_minimo DECIMAL(10, 3) DEFAULT 0.000,
+    fornecedor_padrao VARCHAR(255),
+    codigo_nfe VARCHAR(100),
+    codigo_fornecedor_padrao VARCHAR(100),
+    ean VARCHAR(50),
+    ncm VARCHAR(20),
+    cfop VARCHAR(10),
+    preco_custo NUMERIC(10,2) DEFAULT 0.00,
+    valor_preco_fixado NUMERIC(10,2) NOT NULL,
+    unidade_comercial VARCHAR(20) DEFAULT 'UN',
+    sku VARCHAR(100),
+    estoque_atual NUMERIC(10,3) DEFAULT 0.000,
+    estoque_minimo NUMERIC(10,3) DEFAULT 0.000,
+    ativo BOOLEAN DEFAULT TRUE,
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Clientes
-CREATE TABLE clientes (
-    id SERIAL PRIMARY KEY,
-    nome VARCHAR(255) NOT NULL,
-    cpf_cnpj VARCHAR(20) UNIQUE,
-    telefone VARCHAR(20),
-    email VARCHAR(100),
-    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Tabela de Vendas
 CREATE TABLE vendas (
     id SERIAL PRIMARY KEY,
-    cliente_id INT REFERENCES clientes(id) ON DELETE SET NULL,
-    desconto DECIMAL(10, 2) DEFAULT 0.00,
+    cliente_id INTEGER REFERENCES pessoas(id) ON DELETE SET NULL,
+    desconto NUMERIC(10,2) DEFAULT 0.00,
     forma_pagamento VARCHAR(50) NOT NULL,
     usuario VARCHAR(100) DEFAULT 'Atendente Balcão',
-    total DECIMAL(10, 2) DEFAULT 0.00,
+    total NUMERIC(10,2) DEFAULT 0.00,
+    status VARCHAR(20) DEFAULT 'CONCLUIDA' CHECK (status IN ('CONCLUIDA', 'CANCELADA')),
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Itens da Venda
 CREATE TABLE itens_venda (
     id SERIAL PRIMARY KEY,
-    venda_id INT REFERENCES vendas(id) ON DELETE CASCADE,
-    produto_id INT REFERENCES produtos(id) ON DELETE RESTRICT,
-    quantidade DECIMAL(10, 3) NOT NULL,
-    valor_unitario DECIMAL(10, 2) NOT NULL,
-    subtotal DECIMAL(10, 2) NOT NULL
+    venda_id INTEGER REFERENCES vendas(id) ON DELETE CASCADE,
+    produto_id INTEGER REFERENCES produtos(id) ON DELETE RESTRICT,
+    quantidade NUMERIC(10,3) NOT NULL CHECK (quantidade > 0),
+    valor_unitario NUMERIC(10,2) NOT NULL,
+    subtotal NUMERIC(10,2) NOT NULL
 );
 
--- Dados Iniciais de Teste (Produtos Autopeças)
-INSERT INTO produtos (nome, tipo, categoria, codigo_interno, sku, marca, modelo_aplicacao, unidade_medida, valor_custo, valor_venda, estoque_atual, estoque_minimo) VALUES
-('Óleo Sintético 5W30 1L', 'LUBRIFICANTE', 'Óleos', 'OLEO-5W30', 'SKU-001', 'Havoline', 'Universal Motor Flex/Gasolina', 'UN', 25.00, 45.00, 50.000, 10.000),
-('Pastilha de Freio Dianteira', 'PECA', 'Freios', 'PAS-002', 'SKU-002', 'Fras-le', 'Gol G5 / Fox 1.0 1.6', 'UN', 40.00, 85.00, 12.000, 3.000),
-('Filtro de Ar do Motor', 'FILTRO', 'Filtros', 'FIL-003', 'SKU-003', 'Tecfil', 'Onix / Prisma 1.0 1.4', 'UN', 15.00, 32.00, 20.000, 5.000),
-('Graxa Chassi Lubrificante', 'GRAXA', 'Químicos', 'GRX-004', 'SKU-004', 'Tutela', 'Geral / Oficina', 'KG', 18.00, 35.00, 15.500, 2.000);
+CREATE INDEX idx_pessoas_cliente ON pessoas (cliente) WHERE cliente = TRUE;
+CREATE INDEX idx_pessoas_fornecedor ON pessoas (fornecedor) WHERE fornecedor = TRUE;
+CREATE INDEX idx_produtos_ean ON produtos (ean);
+CREATE INDEX idx_produtos_codigo_nfe ON produtos (codigo_nfe);
+CREATE INDEX idx_vendas_criado_em ON vendas (criado_em DESC);

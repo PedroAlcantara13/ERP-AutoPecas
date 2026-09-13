@@ -18,7 +18,7 @@ export interface ItemVendaDetalhe {
   produto_id: number;
   produto_nome: string;
   sku: string;
-  unidade_medida: string;
+  unidade_comercial: string;
   quantidade: number;
   valor_unitario: number;
   subtotal: number;

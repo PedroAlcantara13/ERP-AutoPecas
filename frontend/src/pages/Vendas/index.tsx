@@ -150,7 +150,7 @@ export const TelaHistoricoVendas: React.FC = () => {
               <tr>
                 <th className="p-4">Cód. Venda</th>
                 <th className="p-4">Data e Hora</th>
-                <th className="p-4">Cliente</th>
+                <th className="p-4">Pessoa</th>
                 <th className="p-4">Pagamento</th>
                 <th className="p-4">Total</th>
                 <th className="p-4">Status</th>
@@ -249,7 +249,7 @@ export const TelaHistoricoVendas: React.FC = () => {
               </div>
 
               <div>
-                <p><span className="font-bold">Cliente:</span> {vendaSelecionada.cliente_nome}</p>
+                <p><span className="font-bold">Pessoa:</span> {vendaSelecionada.cliente_nome}</p>
                 <p><span className="font-bold">Atendente:</span> {vendaSelecionada.usuario}</p>
               </div>
 

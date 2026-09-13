@@ -84,8 +84,8 @@ export const TelaGestaoEstoque: React.FC = () => {
     return produtos.filter(
       p =>
         p.nome.toLowerCase().includes(termo) ||
-        p.sku.toLowerCase().includes(termo) ||
-        (p.modelo_aplicacao && p.modelo_aplicacao.toLowerCase().includes(termo))
+        (p.sku && p.sku.toLowerCase().includes(termo)) ||
+        (p.marca && p.marca.toLowerCase().includes(termo))
     );
   }, [produtos, buscaLote]);
 
@@ -149,7 +149,7 @@ export const TelaGestaoEstoque: React.FC = () => {
     try {
       setCarregando(true);
       await produtoService.adicionarEstoque(produtoMovimentar.id, qtdEntrada);
-      setAlerta({ tipo: 'sucesso', msg: `Entrada de ${qtdEntrada} ${produtoMovimentar.unidade_medida} realizada com sucesso!` });
+      setAlerta({ tipo: 'sucesso', msg: `Entrada de ${qtdEntrada} ${produtoMovimentar.unidade_comercial} realizada com sucesso!` });
       setProdutoMovimentar(null);
       setQtdEntrada(1);
       await carregarProdutos();
@@ -339,7 +339,7 @@ export const TelaGestaoEstoque: React.FC = () => {
                     <tr key={prod.id} className="transition odd:bg-slate-50/70 hover:bg-red-50 dark:odd:bg-slate-950/25 dark:hover:bg-red-500/5">
                       <td className="p-4">
                         <p className="font-bold text-slate-900 dark:text-slate-100">{prod.nome}</p>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Aplicação: {prod.modelo_aplicacao || 'Geral'}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Aplicação: {prod.marca || 'Geral'}</p>
                       </td>
                       <td className="p-4">
                         <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
@@ -347,21 +347,21 @@ export const TelaGestaoEstoque: React.FC = () => {
                         </span>
                       </td>
                       <td className="p-4 text-slate-500 dark:text-slate-400">
-                        R$ {Number(prod.valor_custo || 0).toFixed(2)}
+                        R$ {Number(prod.preco_custo || 0).toFixed(2)}
                       </td>
                       <td className="p-4 font-bold text-red-400">
-                        R$ {Number(prod.valor_venda).toFixed(2)}
+                        R$ {Number(prod.valor_preco_fixado).toFixed(2)}
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
                           <span className={`px-2.5 py-1 rounded-xl border font-bold font-mono text-xs ${statusClasse}`}>
-                            {qtdAtual} {prod.unidade_medida}
+                            {qtdAtual} {prod.unidade_comercial}
                           </span>
                           {statusBadge}
                         </div>
                       </td>
                       <td className="p-4 font-mono text-slate-500 dark:text-slate-400">
-                        {qtdMin} {prod.unidade_medida}
+                        {qtdMin} {prod.unidade_comercial}
                       </td>
                       <td className="p-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
@@ -436,7 +436,7 @@ export const TelaGestaoEstoque: React.FC = () => {
                     >
                       <div>
                         <p className="text-xs font-bold text-gray-200">{prod.nome}</p>
-                        <p className="text-[10px] text-gray-400">SKU: {prod.sku} | Atual: {prod.estoque_atual} {prod.unidade_medida}</p>
+                        <p className="text-[10px] text-gray-400">SKU: {prod.sku} | Atual: {prod.estoque_atual} {prod.unidade_comercial}</p>
                       </div>
                       <button className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20">
                         <Plus size={14} />
@@ -499,7 +499,7 @@ export const TelaGestaoEstoque: React.FC = () => {
                           >
                             <Plus size={14} />
                           </button>
-                          <span className="text-[10px] text-gray-400 font-bold">{item.produto.unidade_medida}</span>
+                          <span className="text-[10px] text-gray-400 font-bold">{item.produto.unidade_comercial}</span>
                           <button
                             onClick={() => removerDoLote(item.produto.id)}
                             className="p-1 text-gray-500 hover:text-red-400 transition"
@@ -559,7 +559,7 @@ export const TelaGestaoEstoque: React.FC = () => {
 
             <div>
               <p className="text-xs font-bold text-gray-200">{produtoMovimentar.nome}</p>
-              <p className="text-[10px] text-gray-400">Estoque Atual: {produtoMovimentar.estoque_atual} {produtoMovimentar.unidade_medida}</p>
+              <p className="text-[10px] text-gray-400">Estoque Atual: {produtoMovimentar.estoque_atual} {produtoMovimentar.unidade_comercial}</p>
             </div>
 
             <div>
@@ -569,7 +569,7 @@ export const TelaGestaoEstoque: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                step={produtoMovimentar.unidade_medida === 'KG' ? '0.1' : '1'}
+                step={produtoMovimentar.unidade_comercial === 'KG' ? '0.1' : '1'}
                 value={qtdEntrada}
                 onChange={(e) => setQtdEntrada(parseFloat(e.target.value) || 0)}
                 className="w-full p-2.5 rounded-xl border bg-gray-950 border-gray-800 text-white font-bold text-sm outline-none focus:border-emerald-500"
@@ -581,7 +581,7 @@ export const TelaGestaoEstoque: React.FC = () => {
               <div className="flex justify-between text-gray-400">
                 <span>Novo Estoque Previsto:</span>
                 <span className="font-bold text-emerald-400">
-                  {(Number(produtoMovimentar.estoque_atual) + Number(qtdEntrada || 0)).toFixed(1)} {produtoMovimentar.unidade_medida}
+                  {(Number(produtoMovimentar.estoque_atual) + Number(qtdEntrada || 0)).toFixed(1)} {produtoMovimentar.unidade_comercial}
                 </span>
               </div>
             </div>
@@ -642,8 +642,8 @@ export const TelaGestaoEstoque: React.FC = () => {
                 <label className="block text-gray-400 mb-1">Aplicação/Modelo</label>
                 <input
                   type="text"
-                  value={formEdicao.modelo_aplicacao || ''}
-                  onChange={(e) => setFormEdicao({ ...formEdicao, modelo_aplicacao: e.target.value })}
+                  value={formEdicao.marca || ''}
+                  onChange={(e) => setFormEdicao({ ...formEdicao, marca: e.target.value })}
                   className="w-full p-2.5 rounded-xl bg-gray-950 border border-gray-800 text-white outline-none focus:border-red-500"
                 />
               </div>
@@ -653,8 +653,8 @@ export const TelaGestaoEstoque: React.FC = () => {
                 <input
                   type="number"
                   step="0.01"
-                  value={formEdicao.valor_custo || ''}
-                  onChange={(e) => setFormEdicao({ ...formEdicao, valor_custo: parseFloat(e.target.value) || 0 })}
+                  value={formEdicao.preco_custo || ''}
+                  onChange={(e) => setFormEdicao({ ...formEdicao, preco_custo: parseFloat(e.target.value) || 0 })}
                   className="w-full p-2.5 rounded-xl bg-gray-950 border border-gray-800 text-white outline-none focus:border-red-500"
                 />
               </div>
@@ -664,8 +664,8 @@ export const TelaGestaoEstoque: React.FC = () => {
                 <input
                   type="number"
                   step="0.01"
-                  value={formEdicao.valor_venda || ''}
-                  onChange={(e) => setFormEdicao({ ...formEdicao, valor_venda: parseFloat(e.target.value) || 0 })}
+                  value={formEdicao.valor_preco_fixado || ''}
+                  onChange={(e) => setFormEdicao({ ...formEdicao, valor_preco_fixado: parseFloat(e.target.value) || 0 })}
                   className="w-full p-2.5 rounded-xl bg-gray-950 border border-gray-800 text-white font-bold text-red-400 outline-none focus:border-red-500"
                 />
               </div>
@@ -683,8 +683,8 @@ export const TelaGestaoEstoque: React.FC = () => {
               <div>
                 <label className="block text-gray-400 mb-1">Unidade</label>
                 <select
-                  value={formEdicao.unidade_medida || 'UN'}
-                  onChange={(e) => setFormEdicao({ ...formEdicao, unidade_medida: e.target.value })}
+                  value={formEdicao.unidade_comercial || 'UN'}
+                  onChange={(e) => setFormEdicao({ ...formEdicao, unidade_comercial: e.target.value })}
                   className="w-full p-2.5 rounded-xl bg-gray-950 border border-gray-800 text-white outline-none"
                 >
                   <option value="UN">UN (Unidade)</option>
