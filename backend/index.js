@@ -10,25 +10,38 @@ const orcamentoRoutes = require('./src/routes/orcamento.routes');
 
 const app = express();
 
-// Configuração de CORS para liberar o frontend na Vercel
 const allowedOrigins = [
   'https://erp-auto-pecas.vercel.app',
   'http://localhost:5173',
-  'http://localhost:3000'
+  'http://localhost:5174',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    // Permite requisições sem origin (mobile, Postman, curl ou mesmo servidor)
+    if (!origin) return callback(null, true);
+
+    // Valida se está na lista explicitada ou se é subdomínio de preview da Vercel
+    const isAllowed = allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin);
+
+    if (isAllowed) {
       callback(null, true);
     } else {
-      callback(new Error('Bloqueado pelo CORS'));
+      // Retorna false em vez de disparar Error para evitar que quebre sem enviar os headers CORS
+      callback(null, false);
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 200
 }));
+
+// Trata explicitamente requisições preflight (OPTIONS)
+app.options('*', cors());
 
 app.use(express.json());
 
@@ -42,9 +55,12 @@ app.get('/', (req, res) => {
   res.json({ mensagem: 'API do ERP Autopeças rodando perfeitamente!' });
 });
 
+// Middleware Global de Tratamento de Erros
 app.use((error, req, res, next) => {
-  console.error(error);
-  res.status(error.status || 500).json({ mensagem: error.message || 'Erro interno do servidor.' });
+  console.error('Erro na aplicação:', error);
+  res.status(error.status || 500).json({ 
+    mensagem: error.message || 'Erro interno do servidor.' 
+  });
 });
 
 // Executa app.listen APENAS em desenvolvimento local
@@ -61,5 +77,4 @@ if (!process.env.VERCEL) {
   });
 }
 
-// Exporta o app do Express para a Vercel transformar em Serverless Function
 module.exports = app;
