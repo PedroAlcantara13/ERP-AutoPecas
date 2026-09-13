@@ -73,6 +73,7 @@ async function listarOrcamentos(filtros = {}) {
   if (filtros.periodo === 'hoje') condicoes.push('o.criado_em >= CURRENT_DATE');
   else if (filtros.periodo === 'semana') condicoes.push("o.criado_em >= CURRENT_DATE - INTERVAL '7 days'");
   else if (filtros.periodo === 'mes') condicoes.push("o.criado_em >= CURRENT_DATE - INTERVAL '30 days'");
+
   if (filtros.busca?.trim()) {
     valores.push(`%${filtros.busca.trim()}%`);
     condicoes.push(`(p.nome_fantasia ILIKE $${valores.length} OR o.cliente_nome ILIKE $${valores.length} OR p.cnpj_cpf ILIKE $${valores.length} OR CAST(o.id AS TEXT) ILIKE $${valores.length})`);
@@ -81,29 +82,39 @@ async function listarOrcamentos(filtros = {}) {
     valores.push(filtros.status.trim().toLowerCase());
     condicoes.push(`o.status = $${valores.length}`);
   }
+
   const { rows } = await pool.query(
-    `SELECT o.id, o.cliente_id, o.desconto, o.total, o.status, o.venda_id, o.criado_em, o.atualizado_em,
+    `SELECT o.id, o.cliente_id, o.desconto, o.total, o.status, o.criado_em, o.atualizado_em,
             COALESCE(p.nome_fantasia, o.cliente_nome, 'Cliente Avulso') AS cliente_nome, p.cnpj_cpf AS cliente_documento
-     FROM orcamentos o LEFT JOIN pessoas p ON p.id = o.cliente_id
-     WHERE ${condicoes.join(' AND ')} ORDER BY o.criado_em DESC`, valores
+     FROM orcamentos o 
+     LEFT JOIN pessoas p ON p.id = o.cliente_id
+     WHERE ${condicoes.join(' AND ')} 
+     ORDER BY o.criado_em DESC`, 
+    valores
   );
   return rows;
 }
 
 async function obterOrcamentoPorId(id) {
   const orcamento = await pool.query(
-    `SELECT o.id, o.cliente_id, o.desconto, o.total, o.status, o.venda_id, o.criado_em, o.atualizado_em,
+    `SELECT o.id, o.cliente_id, o.desconto, o.total, o.status, o.criado_em, o.atualizado_em,
             COALESCE(p.nome_fantasia, o.cliente_nome, 'Cliente Avulso') AS cliente_nome, p.cnpj_cpf AS cliente_documento
-     FROM orcamentos o LEFT JOIN pessoas p ON p.id = o.cliente_id WHERE o.id = $1`, [id]
+     FROM orcamentos o 
+     LEFT JOIN pessoas p ON p.id = o.cliente_id 
+     WHERE o.id = $1`, 
+    [id]
   );
   if (!orcamento.rows[0]) throw erro('Orçamento não encontrado.', 404);
+
   const itens = await pool.query(
     `SELECT oi.id, oi.produto_id, COALESCE(oi.produto_nome, pr.nome, 'Produto sem nome') AS produto_nome, 
             oi.quantidade, oi.valor_unitario, oi.subtotal,
             pr.sku, pr.unidade_comercial, pr.estoque_atual
      FROM orcamento_itens oi 
      LEFT JOIN produtos pr ON pr.id = oi.produto_id
-     WHERE oi.orcamento_id = $1 ORDER BY oi.id`, [id]
+     WHERE oi.orcamento_id = $1 
+     ORDER BY oi.id`, 
+    [id]
   );
   return { ...orcamento.rows[0], itens: itens.rows };
 }
@@ -178,7 +189,7 @@ async function aprovarOrcamento(id, dados = {}) {
       await client.query('INSERT INTO itens_venda (venda_id, produto_id, quantidade, valor_unitario, subtotal) VALUES ($1, $2, $3, $4, $5)', [venda.rows[0].id, item.produto_id, item.quantidade, item.valor_unitario, item.subtotal]);
       await client.query('UPDATE produtos SET estoque_atual = estoque_atual - $1 WHERE id = $2', [item.quantidade, item.produto_id]);
     }
-    await client.query("UPDATE orcamentos SET status = 'aprovado', venda_id = $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2", [venda.rows[0].id, id]);
+    await client.query("UPDATE orcamentos SET status = 'aprovado', atualizado_em = CURRENT_TIMESTAMP WHERE id = $1", [id]);
     await client.query('COMMIT');
     return { mensagem: 'Orçamento aprovado e convertido em venda.', venda_id: venda.rows[0].id };
   } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
