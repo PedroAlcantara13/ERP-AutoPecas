@@ -28,8 +28,9 @@ async function processarVenda(dados = {}) {
   const ehCrediario = formaPagamentoInformada.toLowerCase() === 'crediario';
   const formaPagamento = ehCrediario ? 'crediario' : formaPagamentoInformada;
   
-  // Mapeamento para a coluna 'status' existente no banco
+  // Definição dos valores diretamente no JavaScript
   const statusVenda = ehCrediario ? 'PENDENTE' : 'CONCLUIDA';
+  const dataPagamento = ehCrediario ? null : new Date();
 
   const client = await pool.connect();
   try {
@@ -62,12 +63,12 @@ async function processarVenda(dados = {}) {
     const total = Math.max(0, subtotal - desconto);
     const usuario = dados.usuario?.trim() || 'Atendente Balcão';
 
-    // INSERT ajustado para 6 parâmetros exatos nas colunas reais do banco
+    // INSERT com 7 parâmetros distintos e casts explícitos (evita o erro no Postgres)
     const vendaRes = await client.query(
       `INSERT INTO vendas (cliente_id, desconto, forma_pagamento, usuario, total, status, data_pagamento)
-       VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $6 = 'CONCLUIDA' THEN CURRENT_TIMESTAMP ELSE NULL END)
+       VALUES ($1, $2, $3, $4, $5, $6::varchar, $7::timestamp)
        RETURNING id, criado_em, status, status AS status_pagamento, data_pagamento`,
-      [clienteId, desconto, formaPagamento, usuario, total, statusVenda]
+      [clienteId, desconto, formaPagamento, usuario, total, statusVenda, dataPagamento]
     );
 
     const vendaId = vendaRes.rows[0].id;
