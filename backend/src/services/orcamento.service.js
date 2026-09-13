@@ -207,7 +207,8 @@ async function aprovarOrcamento(id, dados = {}) {
     const statusPagamento = ehCrediario ? 'pendente' : 'pago';
     const dataPagamento = statusPagamento === 'pago' ? new Date() : null;
 
-    // Inserção com valores literais de status para evitar o erro 42P08 do PostgreSQL
+    // Cada parâmetro reutilizado pelo PostgreSQL possui tipo explícito. Isso evita
+    // a inferência conflitante de `text` versus `varchar` (erro 42P08 no Neon).
     const venda = await client.query(
       `INSERT INTO vendas (
         cliente_id, 
@@ -225,9 +226,9 @@ async function aprovarOrcamento(id, dados = {}) {
         $3::varchar, 
         $4::varchar, 
         $5, 
-        '${statusVenda}', 
-        '${statusPagamento}', 
-        $6
+        $6::varchar,
+        $7::varchar,
+        $8::timestamp
       ) 
       RETURNING id`,
       [
@@ -236,7 +237,9 @@ async function aprovarOrcamento(id, dados = {}) {
         ehCrediario ? 'crediario' : formaPagamentoBruta, // $3
         dados.usuario?.trim() || 'Atendente Balcão',        // $4
         orcamento.rows[0].total,                         // $5
-        dataPagamento                                    // $6
+        statusVenda,                                     // $6
+        statusPagamento,                                 // $7
+        dataPagamento                                    // $8
       ]
     );
 
