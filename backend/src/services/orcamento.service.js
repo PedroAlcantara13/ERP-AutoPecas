@@ -134,7 +134,12 @@ async function criarOrcamento(dados) {
     await inserirItens(client, resultado.rows[0].id, valores.itens);
     await client.query('COMMIT');
     return obterOrcamentoPorId(resultado.rows[0].id);
-  } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+  } catch (error) { 
+    await client.query('ROLLBACK'); 
+    throw error; 
+  } finally { 
+    client.release(); 
+  }
 }
 
 async function atualizarOrcamento(id, dados) {
@@ -157,20 +162,30 @@ async function atualizarOrcamento(id, dados) {
     await inserirItens(client, id, valores.itens);
     await client.query('COMMIT');
     return obterOrcamentoPorId(id);
-  } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+  } catch (error) { 
+    await client.query('ROLLBACK'); 
+    throw error; 
+  } finally { 
+    client.release(); 
+  }
 }
 
 async function cancelarOrcamento(id) {
-  const { rows } = await pool.query("UPDATE orcamentos SET status = 'cancelado', atualizado_em = CURRENT_TIMESTAMP WHERE id = $1 AND status = 'pendente' RETURNING id", [id]);
+  const { rows } = await pool.query(
+    "UPDATE orcamentos SET status = 'cancelado', atualizado_em = CURRENT_TIMESTAMP WHERE id = $1 AND status = 'pendente' RETURNING id", 
+    [id]
+  );
   if (!rows[0]) throw erro('Orçamento não encontrado ou não pode ser cancelado.', 404);
   return { mensagem: 'Orçamento cancelado com sucesso.' };
 }
 
 async function aprovarOrcamento(id, dados = {}) {
-  const formaPagamento = String(dados.forma_pagamento || '').trim().toLowerCase();
-  if (!formaPagamento) throw erro('Informe a forma de pagamento para aprovar o orçamento.');
+  const formaPagamentoBruta = String(dados.forma_pagamento || '').trim();
+  if (!formaPagamentoBruta) throw erro('Informe a forma de pagamento para aprovar o orçamento.');
 
-  const ehCrediario = formaPagamento.normalize('NFD').replace(/[\u0300-\u036f]/g, '') === 'crediario';
+  const formaNormalizada = formaPagamentoBruta.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const ehCrediario = formaNormalizada === 'crediario';
+
   const client = await pool.connect();
 
   try {
@@ -182,21 +197,34 @@ async function aprovarOrcamento(id, dados = {}) {
     if (orcamento.rows[0].status !== 'pendente') throw erro('Este orçamento já foi aprovado ou cancelado.');
 
     // 2. Busca os itens
-    const itens = await client.query('SELECT produto_id, quantidade, valor_unitario, subtotal FROM orcamento_itens WHERE orcamento_id = $1 ORDER BY produto_id', [id]);
+    const itens = await client.query(
+      'SELECT produto_id, quantidade, valor_unitario, subtotal FROM orcamento_itens WHERE orcamento_id = $1 ORDER BY produto_id', 
+      [id]
+    );
     await validarClienteEProdutos(client, orcamento.rows[0].cliente_id, itens.rows, true);
 
     const statusVenda = ehCrediario ? 'PENDENTE' : 'CONCLUIDA';
     const statusPagamento = ehCrediario ? 'pendente' : 'pago';
     const dataPagamento = statusPagamento === 'pago' ? new Date() : null;
 
-    // 3. Cria a venda
+    // 3. Cria a venda com tipagem explícita ($6::text, $7::text) para evitar erro PostgreSQL 42P08
     const venda = await client.query(
-      `INSERT INTO vendas (cliente_id, desconto, forma_pagamento, usuario, total, status, status_pagamento, data_pagamento)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      `INSERT INTO vendas (
+        cliente_id, 
+        desconto, 
+        forma_pagamento, 
+        usuario, 
+        total, 
+        status, 
+        status_pagamento, 
+        data_pagamento
+      )
+      VALUES ($1, $2, $3, $4, $5, $6::text, $7::text, $8) 
+      RETURNING id`,
       [
         orcamento.rows[0].cliente_id,
         orcamento.rows[0].desconto,
-        ehCrediario ? 'crediario' : formaPagamento,
+        ehCrediario ? 'crediario' : formaPagamentoBruta,
         dados.usuario?.trim() || 'Atendente Balcão',
         orcamento.rows[0].total,
         statusVenda,
@@ -207,7 +235,7 @@ async function aprovarOrcamento(id, dados = {}) {
 
     const vendaId = venda.rows[0].id;
 
-    // 4. Insere itens da venda e atualiza estoque (trata NULL no estoque)
+    // 4. Insere itens da venda e atualiza o estoque
     for (const item of itens.rows) {
       await client.query(
         'INSERT INTO itens_venda (venda_id, produto_id, quantidade, valor_unitario, subtotal) VALUES ($1, $2, $3, $4, $5)',
@@ -219,15 +247,24 @@ async function aprovarOrcamento(id, dados = {}) {
       );
     }
 
-    // 5. Atualiza o status do orçamento (com fallback para ausência da coluna venda_id)
+    // 5. Atualiza o status do orçamento usando SAVEPOINT para suportar schemas sem a coluna 'venda_id'
     try {
-      await client.query("UPDATE orcamentos SET status = 'aprovado', venda_id = $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2", [vendaId, id]);
+      await client.query('SAVEPOINT sp_atualizar_orcamento');
+      await client.query(
+        "UPDATE orcamentos SET status = 'aprovado', venda_id = $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2", 
+        [vendaId, id]
+      );
+      await client.query('RELEASE SAVEPOINT sp_atualizar_orcamento');
     } catch (e) {
-      await client.query("UPDATE orcamentos SET status = 'aprovado', atualizado_em = CURRENT_TIMESTAMP WHERE id = $1", [id]);
+      await client.query('ROLLBACK TO SAVEPOINT sp_atualizar_orcamento');
+      await client.query(
+        "UPDATE orcamentos SET status = 'aprovado', atualizado_em = CURRENT_TIMESTAMP WHERE id = $1", 
+        [id]
+      );
     }
 
     await client.query('COMMIT');
-    return { mensagem: 'Orçamento aprovado e convertido em venda.', venda_id: vendaId };
+    return { mensagem: 'Orçamento aprovado e convertido em venda com sucesso.', venda_id: vendaId };
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -236,4 +273,11 @@ async function aprovarOrcamento(id, dados = {}) {
   }
 }
 
-module.exports = { listarOrcamentos, obterOrcamentoPorId, criarOrcamento, atualizarOrcamento, cancelarOrcamento, aprovarOrcamento };
+module.exports = { 
+  listarOrcamentos, 
+  obterOrcamentoPorId, 
+  criarOrcamento, 
+  atualizarOrcamento, 
+  cancelarOrcamento, 
+  aprovarOrcamento 
+};
