@@ -207,7 +207,6 @@ async function aprovarOrcamento(id, dados = {}) {
     const statusPagamento = ehCrediario ? 'pendente' : 'pago';
     const dataPagamento = statusPagamento === 'pago' ? new Date() : null;
 
-    // 3. Cria a venda com tipagem explícita ($6::text, $7::text) para evitar erro PostgreSQL 42P08
     const venda = await client.query(
       `INSERT INTO vendas (
         cliente_id, 
@@ -219,7 +218,7 @@ async function aprovarOrcamento(id, dados = {}) {
         status_pagamento, 
         data_pagamento
       )
-      VALUES ($1, $2, $3, $4, $5, $6::text, $7::text, $8) 
+      VALUES ($1, $2, $3::varchar, $4::varchar, $5, $6::varchar, $7::varchar, $8) 
       RETURNING id`,
       [
         orcamento.rows[0].cliente_id,
