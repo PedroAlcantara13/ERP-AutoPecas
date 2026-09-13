@@ -207,6 +207,7 @@ async function aprovarOrcamento(id, dados = {}) {
     const statusPagamento = ehCrediario ? 'pendente' : 'pago';
     const dataPagamento = statusPagamento === 'pago' ? new Date() : null;
 
+    // 3. Cria a venda injetando os valores fixos de status diretamente na consulta SQL (sem usar $6 e $7)
     const venda = await client.query(
       `INSERT INTO vendas (
         cliente_id, 
@@ -218,17 +219,15 @@ async function aprovarOrcamento(id, dados = {}) {
         status_pagamento, 
         data_pagamento
       )
-      VALUES ($1, $2, $3::varchar, $4::varchar, $5, $6::varchar, $7::varchar, $8) 
+      VALUES ($1, $2, $3, $4, $5, '${statusVenda}', '${statusPagamento}', $6) 
       RETURNING id`,
       [
-        orcamento.rows[0].cliente_id,
-        orcamento.rows[0].desconto,
-        ehCrediario ? 'crediario' : formaPagamentoBruta,
-        dados.usuario?.trim() || 'Atendente Balcão',
-        orcamento.rows[0].total,
-        statusVenda,
-        statusPagamento,
-        dataPagamento
+        orcamento.rows[0].cliente_id, // $1
+        orcamento.rows[0].desconto,   // $2
+        ehCrediario ? 'crediario' : formaPagamentoBruta, // $3
+        dados.usuario?.trim() || 'Atendente Balcão',     // $4
+        orcamento.rows[0].total,      // $5
+        dataPagamento                 // $6
       ]
     );
 
@@ -246,7 +245,7 @@ async function aprovarOrcamento(id, dados = {}) {
       );
     }
 
-    // 5. Atualiza o status do orçamento usando SAVEPOINT para suportar schemas sem a coluna 'venda_id'
+    // 5. Atualiza o status do orçamento com suporte a esquemas com ou sem a coluna 'venda_id'
     try {
       await client.query('SAVEPOINT sp_atualizar_orcamento');
       await client.query(
