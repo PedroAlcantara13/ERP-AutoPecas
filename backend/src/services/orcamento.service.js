@@ -8,10 +8,12 @@ function normalizarItens(itens) {
     const produto_id = Number(item.produto_id);
     const quantidade = Number(item.quantidade);
     const valor_unitario = Number(item.valor_unitario);
+    const produto_nome = item.produto_nome ? String(item.produto_nome).trim() : null;
+
     if (!Number.isInteger(produto_id) || produto_id <= 0 || !Number.isFinite(quantidade) || quantidade <= 0 || !Number.isFinite(valor_unitario) || valor_unitario < 0) {
       throw erro('Os itens do orçamento possuem produto, quantidade ou preço inválido.');
     }
-    return { produto_id, quantidade, valor_unitario, subtotal: quantidade * valor_unitario };
+    return { produto_id, produto_nome, quantidade, valor_unitario, subtotal: quantidade * valor_unitario };
   });
 }
 
@@ -31,19 +33,36 @@ function valoresOrcamento(dados = {}) {
 }
 
 async function validarClienteEProdutos(client, clienteId, itens, bloquearProdutos = false) {
+  let nomeCliente = null;
   if (clienteId) {
     const cliente = await client.query('SELECT id, nome_fantasia FROM pessoas WHERE id = $1 AND cliente = true', [clienteId]);
     if (!cliente.rows[0]) throw erro('Cliente não encontrado ou não habilitado.', 404);
-    return cliente.rows[0].nome_fantasia;
+    nomeCliente = cliente.rows[0].nome_fantasia;
   }
-  return null;
+
+  if (bloquearProdutos && Array.isArray(itens)) {
+    for (const item of itens) {
+      const prod = await client.query('SELECT id FROM produtos WHERE id = $1 FOR UPDATE', [item.produto_id]);
+      if (!prod.rows[0]) throw erro(`Produto ID ${item.produto_id} não encontrado.`, 404);
+    }
+  }
+
+  return nomeCliente;
 }
 
 async function inserirItens(client, orcamentoId, itens) {
   for (const item of itens) {
     await client.query(
-      'INSERT INTO orcamento_itens (orcamento_id, produto_id, quantidade, valor_unitario, subtotal) VALUES ($1, $2, $3, $4, $5)',
-      [orcamentoId, item.produto_id, item.quantidade, item.valor_unitario, item.subtotal]
+      `INSERT INTO orcamento_itens (orcamento_id, produto_id, produto_nome, quantidade, valor_unitario, subtotal)
+       VALUES (
+         $1, 
+         $2, 
+         COALESCE($3, (SELECT nome FROM produtos WHERE id = $2), 'Produto sem nome'), 
+         $4, 
+         $5, 
+         $6
+       )`,
+      [orcamentoId, item.produto_id, item.produto_nome, item.quantidade, item.valor_unitario, item.subtotal]
     );
   }
 }
@@ -79,9 +98,11 @@ async function obterOrcamentoPorId(id) {
   );
   if (!orcamento.rows[0]) throw erro('Orçamento não encontrado.', 404);
   const itens = await pool.query(
-    `SELECT oi.id, oi.produto_id, oi.quantidade, oi.valor_unitario, oi.subtotal,
-            pr.nome AS produto_nome, pr.sku, pr.unidade_comercial, pr.estoque_atual
-     FROM orcamento_itens oi JOIN produtos pr ON pr.id = oi.produto_id
+    `SELECT oi.id, oi.produto_id, COALESCE(oi.produto_nome, pr.nome, 'Produto sem nome') AS produto_nome, 
+            oi.quantidade, oi.valor_unitario, oi.subtotal,
+            pr.sku, pr.unidade_comercial, pr.estoque_atual
+     FROM orcamento_itens oi 
+     LEFT JOIN produtos pr ON pr.id = oi.produto_id
      WHERE oi.orcamento_id = $1 ORDER BY oi.id`, [id]
   );
   return { ...orcamento.rows[0], itens: itens.rows };
