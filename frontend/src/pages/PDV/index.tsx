@@ -529,14 +529,14 @@ export const TelaPDVBalcao: React.FC = () => {
                 <span className="text-xl text-red-500">R$ {total.toFixed(2)}</span>
               </div>
 
-              <div className="grid grid-cols-4 gap-1.5 pt-1">
-                {['PIX', 'DINHEIRO', 'CREDITO', 'DEBITO'].map((forma) => (
+              <div className="grid grid-cols-5 gap-1.5 pt-1">
+                {['PIX', 'DINHEIRO', 'CREDITO', 'DEBITO', 'crediario'].map((forma) => (
                   <button
                     key={forma}
                     onClick={() => setFormaPagamento(forma)}
                     className={`rounded-xl border py-2 text-[10px] font-bold transition ${formaPagamento === forma ? 'border-red-500 bg-red-500/10 text-red-600 dark:text-red-400' : 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400'}`}
                   >
-                    {forma}
+                    {forma === 'CREDITO' ? 'CRÉDITO' : forma === 'DEBITO' ? 'DÉBITO' : forma === 'crediario' ? 'CREDIÁRIO' : forma}
                   </button>
                 ))}
               </div>

@@ -12,24 +12,31 @@ export const TelaHistoricoVendas: React.FC = () => {
   // Filtros
   const [periodo, setPeriodo] = useState<string>('todos');
   const [busca, setBusca] = useState<string>('');
+  const [somenteCrediarioPendente, setSomenteCrediarioPendente] = useState(false);
 
   // Modais
   const [vendaSelecionada, setVendaSelecionada] = useState<VendaDetalhe | null>(null);
   const [carregandoDetalhes, setCarregandoDetalhes] = useState(false);
   const [vendaParaCancelar, setVendaParaCancelar] = useState<VendaListItem | null>(null);
+  const [vendaParaConfirmarPagamento, setVendaParaConfirmarPagamento] = useState<VendaListItem | null>(null);
 
   const carregarVendas = useCallback(async () => {
     try {
       setCarregando(true);
       setAlerta(null);
-      const res = await vendaService.listar({ periodo, busca });
+      const res = await vendaService.listar({
+        periodo,
+        busca,
+        forma_pagamento: somenteCrediarioPendente ? 'crediario' : undefined,
+        status_pagamento: somenteCrediarioPendente ? 'pendente' : undefined
+      });
       setVendas(res);
     } catch {
       setAlerta({ tipo: 'erro', msg: 'Falha ao carregar o histórico de vendas.' });
     } finally {
       setCarregando(false);
     }
-  }, [periodo, busca]);
+  }, [periodo, busca, somenteCrediarioPendente]);
 
   useEffect(() => {
     carregarVendas();
@@ -58,6 +65,21 @@ export const TelaHistoricoVendas: React.FC = () => {
     } catch (err: any) {
       const msg = err.response?.data?.mensagem || 'Erro ao cancelar a venda.';
       setAlerta({ tipo: 'erro', msg });
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  const confirmarRecebimento = async () => {
+    if (!vendaParaConfirmarPagamento) return;
+    try {
+      setCarregando(true);
+      const res = await vendaService.confirmarPagamento(vendaParaConfirmarPagamento.id);
+      setAlerta({ tipo: 'sucesso', msg: res.mensagem });
+      setVendaParaConfirmarPagamento(null);
+      await carregarVendas();
+    } catch (err: any) {
+      setAlerta({ tipo: 'erro', msg: err.response?.data?.mensagem || 'Não foi possível confirmar o recebimento.' });
     } finally {
       setCarregando(false);
     }
@@ -127,6 +149,12 @@ export const TelaHistoricoVendas: React.FC = () => {
               {item.rotulo}
             </button>
           ))}
+          <button
+            onClick={() => setSomenteCrediarioPendente((ativo) => !ativo)}
+            className={`whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-semibold transition ${somenteCrediarioPendente ? 'bg-amber-500 text-slate-950' : 'border border-slate-200 bg-slate-50 text-slate-500 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400 dark:hover:text-white'}`}
+          >
+            Crediário / Pendentes
+          </button>
         </div>
 
         {/* Input de Busca */}
@@ -180,8 +208,9 @@ export const TelaHistoricoVendas: React.FC = () => {
                     </td>
                     <td className="p-4">
                       <span className="rounded-lg border border-slate-200 bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-                        {venda.forma_pagamento}
+                        {venda.forma_pagamento === 'crediario' ? 'CREDIÁRIO' : venda.forma_pagamento}
                       </span>
+                      <p className={`mt-1 text-[10px] font-bold ${venda.status_pagamento === 'pendente' ? 'text-amber-500' : 'text-emerald-500'}`}>{venda.status_pagamento === 'pendente' ? 'PENDENTE' : 'PAGO'}</p>
                     </td>
                     <td className="p-4 text-sm font-bold text-slate-900 dark:text-slate-100">
                       R$ {Number(venda.total).toFixed(2)}
@@ -207,6 +236,15 @@ export const TelaHistoricoVendas: React.FC = () => {
                         >
                           <Eye size={15} className={carregandoDetalhes ? 'animate-pulse' : ''} />
                         </button>
+                        {venda.status_pagamento === 'pendente' && venda.status !== 'CANCELADA' && (
+                          <button
+                            onClick={() => setVendaParaConfirmarPagamento(venda)}
+                            className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2 py-2 text-[10px] font-bold text-emerald-600 transition hover:bg-emerald-500/20 dark:text-emerald-400"
+                            title="Confirmar Recebimento"
+                          >
+                            Confirmar Recebimento
+                          </button>
+                        )}
                         {venda.status !== 'CANCELADA' && (
                           <button
                             onClick={() => setVendaParaCancelar(venda)}
@@ -320,6 +358,16 @@ export const TelaHistoricoVendas: React.FC = () => {
                 Sim, Cancelar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {vendaParaConfirmarPagamento && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm space-y-4 rounded-3xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+            <div className="flex items-center gap-3 text-emerald-500"><CheckCircle2 size={28} /><h3 className="text-lg font-bold">Confirmar recebimento?</h3></div>
+            <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">A venda #{vendaParaConfirmarPagamento.id} será marcada como paga e receberá a data de pagamento atual.</p>
+            <div className="flex gap-2 pt-2"><button onClick={() => setVendaParaConfirmarPagamento(null)} className="flex-1 rounded-xl border border-slate-200 bg-slate-100 py-2.5 text-xs font-bold dark:border-slate-700 dark:bg-slate-800">Voltar</button><button onClick={confirmarRecebimento} className="flex-1 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white hover:bg-emerald-700">Confirmar</button></div>
           </div>
         </div>
       )}

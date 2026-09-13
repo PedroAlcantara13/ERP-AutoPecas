@@ -11,6 +11,8 @@ export interface VendaListItem {
   desconto: number;
   usuario: string;
   status: 'CONCLUIDA' | 'CANCELADA';
+  status_pagamento: 'pago' | 'pendente';
+  data_pagamento?: string | null;
 }
 
 export interface ItemVendaDetalhe {
@@ -34,7 +36,7 @@ export const vendaService = {
     return response.data;
   },
 
-  listar: async (filtros?: { periodo?: string; busca?: string }): Promise<VendaListItem[]> => {
+  listar: async (filtros?: { periodo?: string; busca?: string; forma_pagamento?: string; status_pagamento?: 'pago' | 'pendente' }): Promise<VendaListItem[]> => {
     const response = await api.get('/vendas', { params: filtros });
     return response.data;
   },
@@ -46,6 +48,11 @@ export const vendaService = {
 
   cancelar: async (id: number): Promise<{ mensagem: string }> => {
     const response = await api.delete(`/vendas/${id}`);
+    return response.data;
+  },
+
+  confirmarPagamento: async (id: number): Promise<{ mensagem: string; status_pagamento: 'pago'; data_pagamento: string }> => {
+    const response = await api.patch(`/vendas/${id}/confirmar-pagamento`);
     return response.data;
   }
 };

@@ -37,4 +37,13 @@ async function cancelar(req, res, next) {
   }
 }
 
-module.exports = { criar, listar, obterPorId, cancelar };
+async function confirmarPagamento(req, res, next) {
+  try {
+    const resultado = await vendaService.confirmarPagamento(req.params.id);
+    return res.json(resultado);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { criar, listar, obterPorId, cancelar, confirmarPagamento };
