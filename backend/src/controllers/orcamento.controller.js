@@ -61,10 +61,19 @@ async function cancelar(req, res, next) {
 async function aprovar(req, res, next) {
   try {
     const id = validarId(req.params.id);
+    
+    // Tratamento para garantir que req.body seja um objeto válido
+    const body = typeof req.body === 'object' && req.body !== null ? req.body : {};
+    
+    // Se a forma de pagamento vier diretamente como string no corpo
+    const formaPagamento = body.forma_pagamento || (typeof req.body === 'string' ? req.body : undefined);
+
     const dadosAprovacao = {
-      ...req.body,
-      usuario: req.body?.usuario || req.user?.nome || req.usuario?.nome
+      ...body,
+      forma_pagamento: formaPagamento,
+      usuario: body.usuario || req.user?.nome || req.usuario?.nome || 'Atendente Balcão'
     };
+
     const resultado = await service.aprovarOrcamento(id, dadosAprovacao);
     return res.json(resultado);
   } catch (erro) {
