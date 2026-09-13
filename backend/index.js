@@ -10,39 +10,29 @@ const orcamentoRoutes = require('./src/routes/orcamento.routes');
 
 const app = express();
 
-const allowedOrigins = [
-  'https://erp-auto-pecas.vercel.app',
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:3000',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:5174',
-];
+// 1. Liberação de CORS com suporte total a credenciais e múltiplos ambientes
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // Permite origens de localhost ou subdomínios Vercel
+  if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || origin.endsWith('.vercel.app')) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  }
+  
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // Permite requisições sem origin (mobile, Postman, curl ou mesmo servidor)
-    if (!origin) return callback(null, true);
+  // Responde imediatamente a requisições Preflight (OPTIONS)
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
 
-    // Valida se está na lista explicitada ou se é subdomínio de preview da Vercel
-    const isAllowed = allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin);
+  next();
+});
 
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      // Retorna false em vez de disparar Error para evitar que quebre sem enviar os headers CORS
-      callback(null, false);
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  optionsSuccessStatus: 200
-}));
-
-// Trata explicitamente requisições preflight (OPTIONS)
-app.options('*', cors());
-
+// Middleware nativo do Express para CORS (reforço de compatibilidade)
+app.use(cors());
 app.use(express.json());
 
 // Endpoints da API
@@ -55,15 +45,21 @@ app.get('/', (req, res) => {
   res.json({ mensagem: 'API do ERP Autopeças rodando perfeitamente!' });
 });
 
-// Middleware Global de Tratamento de Erros
+// 2. Handler Global de Erros (MANTÉM os cabeçalhos CORS em falhas 500)
 app.use((error, req, res, next) => {
-  console.error('Erro na aplicação:', error);
-  res.status(error.status || 500).json({ 
-    mensagem: error.message || 'Erro interno do servidor.' 
+  console.error('❌ Erro no Servidor:', error);
+
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+
+  res.status(error.status || 500).json({
+    mensagem: error.message || 'Erro interno do servidor.',
   });
 });
 
-// Executa app.listen APENAS em desenvolvimento local
 if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, async () => {
