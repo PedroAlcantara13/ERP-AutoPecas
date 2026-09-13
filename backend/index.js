@@ -6,6 +6,7 @@ const pool = require('./src/config/database');
 const produtoRoutes = require('./src/routes/produto.routes');
 const pessoaRoutes = require('./src/routes/pessoa.routes');
 const vendaRoutes = require('./src/routes/venda.routes');
+const orcamentoRoutes = require('./src/routes/orcamento.routes');
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use(express.json());
 app.use('/api/produtos', produtoRoutes);
 app.use('/api/pessoas', pessoaRoutes);
 app.use('/api/vendas', vendaRoutes);
+app.use('/api/orcamentos', orcamentoRoutes);
 
 app.get('/', (req, res) => {
   res.json({ mensagem: 'API do ERP Autopeças rodando perfeitamente!' });

@@ -1,9 +1,9 @@
 // src/components/Navegacao.tsx
 import React, { useState } from 'react';
-import { ShoppingCart, Package, Boxes, Users, FileText, Menu, X, Wrench, Moon, Sun, Search } from 'lucide-react';
+import { ShoppingCart, Package, Boxes, Users, FileText, ClipboardList, Menu, X, Wrench, Moon, Sun, Search } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
-export type AbaNavegacao = 'pdv' | 'estoque' | 'clientes' | 'produtos' | 'vendas';
+export type AbaNavegacao = 'pdv' | 'estoque' | 'clientes' | 'produtos' | 'orcamentos' | 'vendas';
 
 interface NavegacaoProps {
   abaAtiva: AbaNavegacao;
@@ -20,6 +20,7 @@ export const Navegacao: React.FC<NavegacaoProps> = ({ abaAtiva, setAbaAtiva, abr
     { id: 'estoque' as AbaNavegacao, rotulo: 'Estoque', icone: Package },
     { id: 'clientes' as AbaNavegacao, rotulo: 'Clientes', icone: Users },
     { id: 'produtos' as AbaNavegacao, rotulo: 'Produtos', icone: Boxes },
+    { id: 'orcamentos' as AbaNavegacao, rotulo: 'Orçamentos', icone: ClipboardList },
     { id: 'vendas' as AbaNavegacao, rotulo: 'Histórico de Vendas', icone: FileText }
   ];
 

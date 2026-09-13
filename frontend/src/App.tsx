@@ -1,12 +1,13 @@
 // src/App.tsx
 import { useEffect, useState } from 'react';
-import { Search, Command, Package, Boxes, Users, ShoppingCart, FileText, X } from 'lucide-react';
+import { Search, Command, Package, Boxes, Users, ShoppingCart, FileText, ClipboardList, X } from 'lucide-react';
 import { Navegacao, type AbaNavegacao } from './components/Navegacao';
 import { TelaPDVBalcao } from './pages/PDV';
 import { TelaGestaoEstoque } from './pages/Estoque';
 import { TelaClientes } from './pages/Clientes';
 import { TelaProdutos } from './pages/Produtos';
 import { TelaHistoricoVendas } from './pages/Vendas';
+import { TelaOrcamentos } from './pages/Orcamentos';
 import { produtoService, type Produto } from './services/produto.service';
 import { pessoaService, type Pessoa } from './services/pessoa.service';
 
@@ -55,6 +56,7 @@ function App() {
         {abaAtiva === 'estoque' && <TelaGestaoEstoque />}
         {abaAtiva === 'clientes' && <TelaClientes />}
         {abaAtiva === 'produtos' && <TelaProdutos />}
+        {abaAtiva === 'orcamentos' && <TelaOrcamentos />}
         {abaAtiva === 'vendas' && <TelaHistoricoVendas />}
       </main>
 
@@ -67,7 +69,7 @@ function App() {
           </div>
           <div className="max-h-[55vh] overflow-y-auto p-3">
             {!termo && <><p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Navegação rápida</p>
-              {[['pdv', 'PDV Balcão', ShoppingCart], ['estoque', 'Estoque', Package], ['produtos', 'Produtos', Boxes], ['clientes', 'Clientes', Users], ['vendas', 'Histórico de vendas', FileText]].map(([id, label, Icon]) => { const ItemIcon = Icon as typeof ShoppingCart; return <button key={id as string} onClick={() => navegar(id as AbaNavegacao)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-red-50 hover:text-red-700 dark:text-slate-200 dark:hover:bg-red-500/10 dark:hover:text-red-300"><ItemIcon size={18} /><span className="flex-1">{label as string}</span><span className="text-xs text-slate-400">Abrir</span></button>; })}</>}
+              {[['pdv', 'PDV Balcão', ShoppingCart], ['estoque', 'Estoque', Package], ['produtos', 'Produtos', Boxes], ['clientes', 'Clientes', Users], ['orcamentos', 'Orçamentos', ClipboardList], ['vendas', 'Histórico de vendas', FileText]].map(([id, label, Icon]) => { const ItemIcon = Icon as typeof ShoppingCart; return <button key={id as string} onClick={() => navegar(id as AbaNavegacao)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-red-50 hover:text-red-700 dark:text-slate-200 dark:hover:bg-red-500/10 dark:hover:text-red-300"><ItemIcon size={18} /><span className="flex-1">{label as string}</span><span className="text-xs text-slate-400">Abrir</span></button>; })}</>}
             {produtosEncontrados.length > 0 && <PaletteGroup title="Produtos" items={produtosEncontrados.map(item => ({ title: item.nome, detail: `${item.sku || '-'} · R$ ${Number(item.valor_preco_fixado).toFixed(2)}` }))} onClick={() => navegar('pdv')} />}
             {clientesEncontrados.length > 0 && <PaletteGroup title="Clientes" items={clientesEncontrados.map(item => ({ title: item.nome_fantasia, detail: item.cnpj_cpf || item.whatsapp || 'Pessoa cadastrado' }))} onClick={() => navegar('clientes')} />}
             {termo && !produtosEncontrados.length && !clientesEncontrados.length && <p className="px-3 py-8 text-center text-sm text-slate-500">Nada encontrado para “{consulta}”.</p>}
