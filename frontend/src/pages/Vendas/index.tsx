@@ -1,6 +1,6 @@
 // src/pages/Vendas/index.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Calendar, FileText, Ban, Eye, Printer, AlertTriangle, RefreshCw, X, CheckCircle2, XCircle } from 'lucide-react';
+import { Search,Clock, Calendar, FileText, Ban, Eye, Printer, AlertTriangle, RefreshCw, X, CheckCircle2, XCircle } from 'lucide-react';
 import { vendaService, type VendaListItem, type VendaDetalhe } from '../../services/venda.service';
 import { EmptyState, TableSkeleton } from '../../components/Feedback';
 
@@ -174,102 +174,125 @@ export const TelaHistoricoVendas: React.FC = () => {
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-xl shadow-slate-200/30 dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-black/10 no-print">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-100/95 font-semibold uppercase tracking-wider text-slate-500 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-400">
-              <tr>
-                <th className="p-4">Cód. Venda</th>
-                <th className="p-4">Data e Hora</th>
-                <th className="p-4">Pessoa</th>
-                <th className="p-4">Pagamento</th>
-                <th className="p-4">Total</th>
-                <th className="p-4">Status</th>
-                <th className="p-4 text-center">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {carregando ? <TableSkeleton columns={7} /> : vendas.length === 0 ? (
-                <tr>
-                  <td colSpan={7}><EmptyState title="Nenhuma venda encontrada" description="Altere o período ou os termos de pesquisa para localizar uma venda." /></td>
-                </tr>
-              ) : (
-                vendas.map((venda) => {
-                  const statusPagamento = String(venda.status_pagamento || '').toLowerCase().trim();
-                  const isPendente = statusPagamento === 'pendente';
-                  const isCancelada = String(venda.status || '').toUpperCase().trim() === 'CANCELADA';
-                  const formaPagamento = String(venda.forma_pagamento || '').toLowerCase().trim();
+  <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-100/95 font-semibold uppercase tracking-wider text-slate-500 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-400">
+    <tr>
+      <th className="p-4">Cód. Venda</th>
+      <th className="p-4">Data e Hora</th>
+      <th className="p-4">Pessoa</th>
+      <th className="p-4">Pagamento</th>
+      <th className="p-4">Total</th>
+      <th className="p-4">Status</th>
+      <th className="p-4 text-center">Ações</th>
+    </tr>
+  </thead>
+  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+    {carregando ? (
+      <TableSkeleton columns={7} />
+    ) : vendas.length === 0 ? (
+      <tr>
+        <td colSpan={7}>
+          <EmptyState
+            title="Nenhuma venda encontrada"
+            description="Altere o período ou os termos de pesquisa para localizar uma venda."
+          />
+        </td>
+      </tr>
+    ) : (
+      vendas.map((venda) => {
+        const statusPagamento = String(venda.status_pagamento || '').toLowerCase().trim();
+        const statusVenda = String(venda.status || '').toUpperCase().trim();
 
-                  return (
-                    <tr key={venda.id} className="transition odd:bg-slate-50/70 hover:bg-red-50 dark:odd:bg-slate-950/25 dark:hover:bg-red-500/5">
-                      <td className="p-4 font-mono font-bold text-red-400">#{venda.id}</td>
-                      <td className="p-4 text-slate-600 dark:text-slate-300">
-                        <span className="flex items-center gap-1.5">
-                          <Calendar size={13} className="text-slate-500" />
-                          {new Date(venda.data).toLocaleString('pt-BR')}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <p className="font-semibold text-slate-800 dark:text-slate-200">{venda.cliente_nome}</p>
-                        {venda.cliente_documento && (
-                          <p className="text-[10px] text-slate-500">{venda.cliente_documento}</p>
-                        )}
-                      </td>
-                      <td className="p-4">
-                        <span className="rounded-lg border border-slate-200 bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 uppercase">
-                          {formaPagamento === 'crediario' ? 'CREDIÁRIO' : venda.forma_pagamento}
-                        </span>
-                        <p className={`mt-1 text-[10px] font-bold ${isPendente ? 'text-amber-500' : 'text-emerald-500'}`}>
-                          {isPendente ? 'PENDENTE' : 'PAGO'}
-                        </p>
-                      </td>
-                      <td className="p-4 text-sm font-bold text-slate-900 dark:text-slate-100">
-                        R$ {Number(venda.total).toFixed(2)}
-                      </td>
-                      <td className="p-4">
-                        {isCancelada ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-bold">
-                            <XCircle size={12} /> Cancelada
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold">
-                            <CheckCircle2 size={12} /> Concluída
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => abrirDetalhes(venda.id)}
-                            disabled={carregandoDetalhes}
-                            className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-slate-600 transition hover:border-red-500/50 hover:text-red-600 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:text-white"
-                            title="Ver Detalhes e Cupom"
-                          >
-                            <Eye size={15} className={carregandoDetalhes ? 'animate-pulse' : ''} />
-                          </button>
-                          {isPendente && !isCancelada && (
-                            <button
-                              onClick={() => setVendaParaConfirmarPagamento(venda)}
-                              className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2 py-2 text-[10px] font-bold text-emerald-600 transition hover:bg-emerald-500/20 dark:text-emerald-400"
-                              title="Confirmar Recebimento"
-                            >
-                              Confirmar Recebimento
-                            </button>
-                          )}
-                          {!isCancelada && (
-                            <button
-                              onClick={() => setVendaParaCancelar(venda)}
-                              className="p-2 rounded-xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 transition"
-                              title="Cancelar / Estornar Venda"
-                            >
-                              <Ban size={15} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+        const isPendente = statusPagamento === 'pendente';
+        const isCancelada = statusVenda === 'CANCELADA';
+        const isStatusPendente = statusVenda === 'PENDENTE';
+        const formaPagamento = String(venda.forma_pagamento || '').toLowerCase().trim();
+
+        return (
+          <tr
+            key={venda.id}
+            className="transition odd:bg-slate-50/70 hover:bg-red-50 dark:odd:bg-slate-950/25 dark:hover:bg-red-500/5"
+          >
+            <td className="p-4 font-mono font-bold text-red-400">#{venda.id}</td>
+            <td className="p-4 text-slate-600 dark:text-slate-300">
+              <span className="flex items-center gap-1.5">
+                <Calendar size={13} className="text-slate-500" />
+                {new Date(venda.data).toLocaleString('pt-BR')}
+              </span>
+            </td>
+            <td className="p-4">
+              <p className="font-semibold text-slate-800 dark:text-slate-200">
+                {venda.cliente_nome}
+              </p>
+              {venda.cliente_documento && (
+                <p className="text-[10px] text-slate-500">{venda.cliente_documento}</p>
               )}
-            </tbody>
-          </table>
+            </td>
+            <td className="p-4">
+              <span className="rounded-lg border border-slate-200 bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+                {formaPagamento === 'crediario' ? 'CREDIÁRIO' : venda.forma_pagamento}
+              </span>
+              <p
+                className={`mt-1 text-[10px] font-bold ${
+                  isPendente ? 'text-amber-500' : 'text-emerald-500'
+                }`}
+              >
+                {isPendente ? 'PENDENTE' : 'PAGO'}
+              </p>
+            </td>
+            <td className="p-4 text-sm font-bold text-slate-900 dark:text-slate-100">
+              R$ {Number(venda.total).toFixed(2)}
+            </td>
+            <td className="p-4">
+              {isCancelada ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-[10px] font-bold text-red-400">
+                  <XCircle size={12} /> Cancelada
+                </span>
+              ) : isStatusPendente ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-500 dark:text-amber-400">
+                  <Clock size={12} /> Pendente
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold text-emerald-400">
+                  <CheckCircle2 size={12} /> Concluída
+                </span>
+              )}
+            </td>
+            <td className="p-4 text-center">
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  onClick={() => abrirDetalhes(venda.id)}
+                  disabled={carregandoDetalhes}
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-slate-600 transition hover:border-red-500/50 hover:text-red-600 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:text-white"
+                  title="Ver Detalhes e Cupom"
+                >
+                  <Eye size={15} className={carregandoDetalhes ? 'animate-pulse' : ''} />
+                </button>
+                {isPendente && !isCancelada && (
+                  <button
+                    onClick={() => setVendaParaConfirmarPagamento(venda)}
+                    className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2 py-2 text-[10px] font-bold text-emerald-600 transition hover:bg-emerald-500/20 dark:text-emerald-400"
+                    title="Confirmar Recebimento"
+                  >
+                    Confirmar Recebimento
+                  </button>
+                )}
+                {!isCancelada && (
+                  <button
+                    onClick={() => setVendaParaCancelar(venda)}
+                    className="rounded-xl border border-red-500/20 bg-red-500/10 p-2 text-red-400 transition hover:bg-red-500/20"
+                    title="Cancelar / Estornar Venda"
+                  >
+                    <Ban size={15} />
+                  </button>
+                )}
+              </div>
+            </td>
+          </tr>
+        );
+      })
+    )}
+  </tbody>
+</table>
         </div>
       </div>
 
