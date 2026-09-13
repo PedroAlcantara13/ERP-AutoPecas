@@ -171,28 +171,49 @@ async function aprovarOrcamento(id, dados = {}) {
   if (!formaPagamento) throw erro('Informe a forma de pagamento para aprovar o orçamento.');
   const ehCrediario = formaPagamento.normalize('NFD').replace(/[\u0300-\u036f]/g, '') === 'crediario';
   const client = await pool.connect();
+
   try {
     await client.query('BEGIN');
     const orcamento = await client.query('SELECT * FROM orcamentos WHERE id = $1 FOR UPDATE', [id]);
     if (!orcamento.rows[0]) throw erro('Orçamento não encontrado.', 404);
     if (orcamento.rows[0].status !== 'pendente') throw erro('Este orçamento já foi aprovado ou cancelado.');
+    
     const itens = await client.query('SELECT produto_id, quantidade, valor_unitario, subtotal FROM orcamento_itens WHERE orcamento_id = $1 ORDER BY produto_id', [id]);
     await validarClienteEProdutos(client, orcamento.rows[0].cliente_id, itens.rows, true);
+    
     const statusVenda = ehCrediario ? 'PENDENTE' : 'CONCLUIDA';
     const statusPagamento = ehCrediario ? 'pendente' : 'pago';
+    const dataPagamento = statusPagamento === 'pago' ? new Date() : null;
+
     const venda = await client.query(
       `INSERT INTO vendas (cliente_id, desconto, forma_pagamento, usuario, total, status, status_pagamento, data_pagamento)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $7 = 'pago' THEN CURRENT_TIMESTAMP ELSE NULL END) RETURNING id`,
-      [orcamento.rows[0].cliente_id, orcamento.rows[0].desconto, ehCrediario ? 'crediario' : formaPagamento, dados.usuario?.trim() || 'Atendente Balcão', orcamento.rows[0].total, statusVenda, statusPagamento]
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      [
+        orcamento.rows[0].cliente_id,
+        orcamento.rows[0].desconto,
+        ehCrediario ? 'crediario' : formaPagamento,
+        dados.usuario?.trim() || 'Atendente Balcão',
+        orcamento.rows[0].total,
+        statusVenda,
+        statusPagamento,
+        dataPagamento
+      ]
     );
+
     for (const item of itens.rows) {
       await client.query('INSERT INTO itens_venda (venda_id, produto_id, quantidade, valor_unitario, subtotal) VALUES ($1, $2, $3, $4, $5)', [venda.rows[0].id, item.produto_id, item.quantidade, item.valor_unitario, item.subtotal]);
       await client.query('UPDATE produtos SET estoque_atual = estoque_atual - $1 WHERE id = $2', [item.quantidade, item.produto_id]);
     }
+
     await client.query("UPDATE orcamentos SET status = 'aprovado', atualizado_em = CURRENT_TIMESTAMP WHERE id = $1", [id]);
     await client.query('COMMIT');
     return { mensagem: 'Orçamento aprovado e convertido em venda.', venda_id: venda.rows[0].id };
-  } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+  } catch (error) { 
+    await client.query('ROLLBACK'); 
+    throw error; 
+  } finally { 
+    client.release(); 
+  }
 }
 
 module.exports = { listarOrcamentos, obterOrcamentoPorId, criarOrcamento, atualizarOrcamento, cancelarOrcamento, aprovarOrcamento };
