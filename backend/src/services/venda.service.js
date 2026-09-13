@@ -2,6 +2,14 @@ const pool = require('../config/database');
 
 const erro = (mensagem, status = 400) => Object.assign(new Error(mensagem), { status });
 
+const MAPA_FORMAS = {
+  1: 'pix', '1': 'pix',
+  2: 'dinheiro', '2': 'dinheiro',
+  3: 'credito', '3': 'credito',
+  4: 'debito', '4': 'debito',
+  5: 'crediario', '5': 'crediario'
+};
+
 function agruparItens(itens) {
   if (!Array.isArray(itens) || !itens.length) throw erro('A venda deve conter ao menos um item.');
   const agrupados = new Map();
@@ -19,34 +27,43 @@ function agruparItens(itens) {
 }
 
 function extrairFormaPagamento(valor) {
+  if (valor === undefined || valor === null || valor === '') return '';
+
   let forma = Array.isArray(valor) ? valor[0] : valor;
 
-  if (forma && typeof forma === 'object') {
-    const campos = ['valor', 'value', 'nome', 'descricao', 'label', 'forma_pagamento', 'formaPagamento', 'tipo_pagamento', 'tipo'];
-    forma = campos.map((campo) => forma[campo]).find((campo) => campo !== undefined && campo !== null && campo !== '');
-
-    if (forma === undefined || forma === null || forma === '') {
-      const formasPorId = { 1: 'pix', 2: 'dinheiro', 3: 'credito', 4: 'debito', 5: 'crediario' };
-      forma = formasPorId[valor.id] || valor.id;
+  if (typeof forma === 'object' && forma !== null) {
+    const campos = ['valor', 'value', 'nome', 'name', 'descricao', 'label', 'forma_pagamento', 'formaPagamento', 'tipo_pagamento', 'tipo', 'id'];
+    for (const campo of campos) {
+      if (forma[campo] !== undefined && forma[campo] !== null && forma[campo] !== '') {
+        forma = forma[campo];
+        break;
+      }
     }
   }
 
-  if (typeof forma === 'number') {
-    const formasPorId = { 1: 'pix', 2: 'dinheiro', 3: 'credito', 4: 'debito', 5: 'crediario' };
-    forma = formasPorId[forma] || String(forma);
-  }
-  if (typeof forma !== 'string') return '';
+  if (MAPA_FORMAS[forma]) return MAPA_FORMAS[forma];
 
-  return forma.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().replace(/\s+/g, '').toLowerCase();
+  if (typeof forma !== 'string') forma = String(forma);
+
+  const limpo = forma
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .replace(/\s+/g, '')
+    .toLowerCase();
+
+  return MAPA_FORMAS[limpo] || limpo;
 }
 
 async function processarVenda(dados = {}) {
   const formasRecebidas = [dados.forma_pagamento, dados.formaPagamento, dados.tipo_pagamento]
     .filter((forma) => forma !== undefined && forma !== null && forma !== '');
+  
   const formaPagamentoRecebida = formasRecebidas.find((forma) => extrairFormaPagamento(forma)) ?? formasRecebidas[0];
   const formaPagamento = extrairFormaPagamento(formaPagamentoRecebida);
-  const ehCrediario = formaPagamento === 'crediario';
-  console.log('[processarVenda] forma_pagamento recebido:', formaPagamentoRecebida, '| ehCrediario:', ehCrediario);
+  
+  const ehCrediario = formaPagamento === 'crediario' || formaPagamento.includes('crediario');
+  console.log('[processarVenda] Forma processada:', formaPagamento, '| ehCrediario:', ehCrediario);
 
   const itens = agruparItens(dados.itens);
   const desconto = Number(dados.desconto || 0);
@@ -54,7 +71,6 @@ async function processarVenda(dados = {}) {
   if (!formaPagamento) throw erro('Forma de pagamento é obrigatória ou inválida.');
 
   const statusVenda = ehCrediario ? 'PENDENTE' : 'CONCLUIDA';
-  const statusPagamento = ehCrediario ? 'pendente' : 'pago';
   const dataPagamento = ehCrediario ? null : new Date();
 
   const client = await pool.connect();
@@ -86,11 +102,13 @@ async function processarVenda(dados = {}) {
     }
 
     const total = Math.max(0, subtotal - desconto);
+
+    // INSERT ajustado para as colunas reais do banco
     const vendaRes = await client.query(
-      `INSERT INTO vendas (cliente_id, desconto, forma_pagamento, usuario, total, status, data_pagamento, status_pagamento)
-       VALUES ($1, $2, $3, $4, $5, $6::varchar, $7::timestamp, $8::varchar)
-       RETURNING id, criado_em, status, status_pagamento, data_pagamento`,
-      [clienteId, desconto, formaPagamento, dados.usuario?.trim() || 'Atendente Balcão', total, statusVenda, dataPagamento, statusPagamento]
+      `INSERT INTO vendas (cliente_id, desconto, forma_pagamento, usuario, total, status, data_pagamento)
+       VALUES ($1, $2, $3, $4, $5, $6::varchar, $7::timestamp)
+       RETURNING id, criado_em, status, status AS status_pagamento, data_pagamento`,
+      [clienteId, desconto, formaPagamento, dados.usuario?.trim() || 'Atendente Balcão', total, statusVenda, dataPagamento]
     );
 
     const vendaId = vendaRes.rows[0].id;
@@ -149,7 +167,6 @@ async function listarVendas(filtros = {}) {
   const filtroStatus = (filtros.status || filtros.status_pagamento)?.trim();
   if (filtroStatus) {
     let statusNormalizado = filtroStatus.toUpperCase();
-    if (statusNormalizado === 'PENDENTE') statusNormalizado = 'PENDENTE';
     if (statusNormalizado === 'PAGO') statusNormalizado = 'CONCLUIDA';
     
     valores.push(statusNormalizado);

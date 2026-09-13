@@ -1,4 +1,3 @@
-// src/pages/PDV/index.tsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, ShoppingCart, Trash2, Printer, AlertTriangle, RefreshCw, User, DollarSign, X, Check, Minus, Plus, Volume2, VolumeX } from 'lucide-react';
 import { produtoService, type Produto } from '../../services/produto.service';
@@ -24,12 +23,67 @@ interface DadosComprovante {
   troco?: number;
 }
 
+interface QuantityControlProps {
+  produto: Produto;
+  quantidade: number;
+  inputRef: (element: HTMLInputElement | null) => void;
+  onChange: (novaQtd: number) => void;
+  onRemove: () => void;
+}
+
+const FORMAS_PAGAMENTO = [
+  { id: 'pix', label: 'PIX' },
+  { id: 'dinheiro', label: 'DINHEIRO' },
+  { id: 'credito', label: 'CRÉDITO' },
+  { id: 'debito', label: 'DÉBITO' },
+  { id: 'crediario', label: 'CREDIÁRIO' },
+];
+
+const QuantityControl: React.FC<QuantityControlProps> = ({ produto, quantidade, inputRef, onChange, onRemove }) => {
+  const passo = produto.unidade_comercial === 'KG' ? 0.1 : 1;
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => onChange(Number((quantidade - passo).toFixed(2)))}
+        className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+      >
+        <Minus size={14} />
+      </button>
+      <input
+        ref={inputRef}
+        type="number"
+        step={passo}
+        min="0"
+        value={quantidade}
+        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+        className="w-12 rounded-lg border border-slate-200 bg-white p-1 text-center text-xs font-bold text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+      />
+      <button
+        type="button"
+        onClick={() => onChange(Number((quantidade + passo).toFixed(2)))}
+        className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+      >
+        <Plus size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="ml-1 p-1 text-red-500 hover:text-red-700"
+        title="Remover produto"
+      >
+        <Trash2 size={14} />
+      </button>
+    </div>
+  );
+};
+
 export const TelaPDVBalcao: React.FC = () => {
   const [busca, setBusca] = useState('');
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [clientes, setClientes] = useState<Pessoa[]>([]);
   
-  // Estado do Pessoa da Venda
+  // Estado da Pessoa da Venda
   const [clienteId, setClienteId] = useState<number | null>(null);
   const [buscaCliente, setBuscaCliente] = useState('');
   const [dropdownClienteAberto, setDropdownClienteAberto] = useState(false);
@@ -37,7 +91,7 @@ export const TelaPDVBalcao: React.FC = () => {
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
   const [tipoDesconto, setTipoDesconto] = useState<'valor' | 'percentual'>('valor');
   const [descontoInformado, setDescontoInformado] = useState<number>(0);
-  const [formaPagamento, setFormaPagamento] = useState<string>('PIX');
+  const [formaPagamento, setFormaPagamento] = useState<string>('pix');
   const [valorRecebido, setValorRecebido] = useState<number>(0);
   const [alertaErro, setAlertaErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState<boolean>(false);
@@ -115,12 +169,10 @@ export const TelaPDVBalcao: React.FC = () => {
     setSomAtivo(atual => { localStorage.setItem('pdv-som', String(!atual)); return !atual; });
   };
 
-  // Pessoa selecionado atualmente
   const clienteSelecionado = useMemo(() => {
     return clientes.find(c => c.id === clienteId) || null;
   }, [clienteId, clientes]);
 
-  // Filtro da busca de clientes
   const clientesFiltrados = useMemo(() => {
     if (!buscaCliente.trim()) return clientes.slice(0, 5);
     const termo = buscaCliente.toLowerCase();
@@ -202,7 +254,7 @@ export const TelaPDVBalcao: React.FC = () => {
   const finalizarVenda = async () => {
     if (carrinho.length === 0) return;
 
-    if (formaPagamento === 'DINHEIRO' && valorRecebido < total) {
+    if (formaPagamento === 'dinheiro' && valorRecebido < total) {
       setAlertaErro(`O valor recebido (R$ ${valorRecebido.toFixed(2)}) é menor que o total da venda (R$ ${total.toFixed(2)}).`);
       return;
     }
@@ -216,6 +268,8 @@ export const TelaPDVBalcao: React.FC = () => {
         desconto,
         forma_pagamento: formaPagamento,
         usuario: 'Atendente Balcão',
+        valor_recebido: formaPagamento === 'dinheiro' ? valorRecebido : undefined,
+        troco: formaPagamento === 'dinheiro' ? troco : undefined,
         itens: carrinho.map(item => ({
           produto_id: item.produto.id,
           quantidade: item.quantidade
@@ -223,6 +277,8 @@ export const TelaPDVBalcao: React.FC = () => {
       };
 
       const res = await vendaService.finalizar(payload);
+
+      const formaRotulo = FORMAS_PAGAMENTO.find(f => f.id === formaPagamento)?.label || formaPagamento.toUpperCase();
 
       setComprovante({
         vendaId: res.venda_id,
@@ -237,9 +293,9 @@ export const TelaPDVBalcao: React.FC = () => {
         subtotal,
         desconto,
         total: res.total,
-        formaPagamento,
-        valorRecebido: formaPagamento === 'DINHEIRO' ? valorRecebido : undefined,
-        troco: formaPagamento === 'DINHEIRO' ? troco : undefined
+        formaPagamento: formaRotulo,
+        valorRecebido: formaPagamento === 'dinheiro' ? valorRecebido : undefined,
+        troco: formaPagamento === 'dinheiro' ? troco : undefined
       });
 
       setCarrinho([]);
@@ -379,14 +435,13 @@ export const TelaPDVBalcao: React.FC = () => {
                 <span className="text-xs text-slate-500 dark:text-slate-400">{carrinho.length} itens</span>
               </div>
 
-              {/* PESQUISA DE CLIENTE (Substituindo o dropdown) */}
+              {/* Busca de Pessoa */}
               <div className="mb-3 relative">
                 <label className="mb-1 flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
                   <User size={14} /> Pessoa da Venda
                 </label>
 
                 {clienteSelecionado ? (
-                  /* Card do Pessoa Selecionado */
                   <div className="flex items-center justify-between rounded-xl border border-red-500/40 bg-red-500/10 p-2.5 text-slate-900 dark:text-slate-100">
                     <div>
                       <p className="text-xs font-bold">{clienteSelecionado.nome_fantasia}</p>
@@ -396,6 +451,7 @@ export const TelaPDVBalcao: React.FC = () => {
                       </p>
                     </div>
                     <button
+                      type="button"
                       onClick={() => { setClienteId(null); setBuscaCliente(''); }}
                       className="p-1 hover:bg-red-500/20 text-red-400 rounded-lg transition"
                       title="Remover cliente"
@@ -404,7 +460,6 @@ export const TelaPDVBalcao: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  /* Input de Busca de Pessoa */
                   <div className="relative">
                     <input
                       type="text"
@@ -419,6 +474,7 @@ export const TelaPDVBalcao: React.FC = () => {
                     />
                     {buscaCliente && (
                       <button
+                        type="button"
                         onClick={() => { setBuscaCliente(''); setDropdownClienteAberto(false); }}
                         className="absolute right-2 top-2.5 text-slate-400 hover:text-red-500"
                       >
@@ -426,7 +482,6 @@ export const TelaPDVBalcao: React.FC = () => {
                       </button>
                     )}
 
-                    {/* Menu Dropdown de Resultados da Busca */}
                     {dropdownClienteAberto && (
                       <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white text-slate-900 shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
                         <div
@@ -481,7 +536,13 @@ export const TelaPDVBalcao: React.FC = () => {
                         <p className="text-xs font-medium line-clamp-1">{produto.nome}</p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">R$ {Number(produto.valor_preco_fixado).toFixed(2)} / {produto.unidade_comercial}</p>
                       </div>
-                      <QuantityControl produto={produto} quantidade={quantidade} inputRef={element => { quantidadeInputRefs.current[produto.id] = element; }} onChange={novaQuantidade => atualizarQuantidade(produto.id, novaQuantidade)} onRemove={() => removerDoCarrinho(produto.id)} />
+                      <QuantityControl
+                        produto={produto}
+                        quantidade={quantidade}
+                        inputRef={element => { quantidadeInputRefs.current[produto.id] = element; }}
+                        onChange={novaQuantidade => atualizarQuantidade(produto.id, novaQuantidade)}
+                        onRemove={() => removerDoCarrinho(produto.id)}
+                      />
                     </div>
                   ))
                 )}
@@ -499,8 +560,8 @@ export const TelaPDVBalcao: React.FC = () => {
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Desconto</span>
                   <div className="flex rounded-lg border border-slate-200 p-0.5 dark:border-slate-700">
-                    <button onClick={() => setTipoDesconto('valor')} className={`rounded-md px-2 py-1 text-[10px] font-bold transition ${tipoDesconto === 'valor' ? 'bg-red-600 text-white' : 'text-slate-500 dark:text-slate-400'}`}>R$</button>
-                    <button onClick={() => setTipoDesconto('percentual')} className={`rounded-md px-2 py-1 text-[10px] font-bold transition ${tipoDesconto === 'percentual' ? 'bg-red-600 text-white' : 'text-slate-500 dark:text-slate-400'}`}>%</button>
+                    <button type="button" onClick={() => setTipoDesconto('valor')} className={`rounded-md px-2 py-1 text-[10px] font-bold transition ${tipoDesconto === 'valor' ? 'bg-red-600 text-white' : 'text-slate-500 dark:text-slate-400'}`}>R$</button>
+                    <button type="button" onClick={() => setTipoDesconto('percentual')} className={`rounded-md px-2 py-1 text-[10px] font-bold transition ${tipoDesconto === 'percentual' ? 'bg-red-600 text-white' : 'text-slate-500 dark:text-slate-400'}`}>%</button>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -530,18 +591,23 @@ export const TelaPDVBalcao: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-5 gap-1.5 pt-1">
-                {['PIX', 'DINHEIRO', 'CREDITO', 'DEBITO', 'crediario'].map((forma) => (
+                {FORMAS_PAGAMENTO.map((item) => (
                   <button
-                    key={forma}
-                    onClick={() => setFormaPagamento(forma)}
-                    className={`rounded-xl border py-2 text-[10px] font-bold transition ${formaPagamento === forma ? 'border-red-500 bg-red-500/10 text-red-600 dark:text-red-400' : 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400'}`}
+                    key={item.id}
+                    type="button"
+                    onClick={() => setFormaPagamento(item.id)}
+                    className={`rounded-xl border py-2 text-[10px] font-bold transition ${
+                      formaPagamento === item.id
+                        ? 'border-red-500 bg-red-500/10 text-red-600 dark:text-red-400'
+                        : 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400'
+                    }`}
                   >
-                    {forma === 'CREDITO' ? 'CRÉDITO' : forma === 'DEBITO' ? 'DÉBITO' : forma === 'crediario' ? 'CREDIÁRIO' : forma}
+                    {item.label}
                   </button>
                 ))}
               </div>
 
-              {formaPagamento === 'DINHEIRO' && (
+              {formaPagamento === 'dinheiro' && (
                 <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
                   <div className="flex justify-between items-center text-xs">
                     <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400"><DollarSign size={14} /> Valor Recebido:</span>
@@ -562,6 +628,7 @@ export const TelaPDVBalcao: React.FC = () => {
               )}
 
               <button
+                type="button"
                 onClick={finalizarVenda}
                 disabled={carrinho.length === 0 || carregando}
                 className="w-full mt-2 py-3.5 rounded-2xl bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold text-sm shadow-lg shadow-red-600/20 transition flex justify-center items-center gap-2"
@@ -578,7 +645,7 @@ export const TelaPDVBalcao: React.FC = () => {
       {comprovante && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white text-gray-900 p-6 rounded-3xl max-w-sm w-full shadow-2xl relative space-y-4">
-            <button onClick={() => setComprovante(null)} className="absolute right-4 top-4 text-gray-400 hover:text-gray-700 no-print">
+            <button type="button" onClick={() => setComprovante(null)} className="absolute right-4 top-4 text-gray-400 hover:text-gray-700 no-print">
               <X size={20} />
             </button>
 
@@ -629,6 +696,7 @@ export const TelaPDVBalcao: React.FC = () => {
 
             <div className="flex gap-2 pt-2 no-print">
               <button
+                type="button"
                 onClick={imprimirCupom}
                 className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl flex items-center justify-center gap-2 text-sm"
               >
@@ -641,25 +709,3 @@ export const TelaPDVBalcao: React.FC = () => {
     </div>
   );
 };
-
-function QuantityControl({ produto, quantidade, inputRef, onChange, onRemove }: {
-  produto: Produto;
-  quantidade: number;
-  inputRef: (element: HTMLInputElement | null) => void;
-  onChange: (quantidade: number) => void;
-  onRemove: () => void;
-}) {
-  const passo = produto.unidade_comercial === 'KG' ? 0.1 : 1;
-  const ajustar = (diferenca: number) => onChange(Number((quantidade + diferenca).toFixed(2)));
-  return <div className="flex shrink-0 flex-col items-end gap-1.5">
-    <div className="flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <button onClick={event => { event.stopPropagation(); ajustar(-passo); }} className="flex h-8 w-8 items-center justify-center text-slate-500 transition hover:bg-red-50 hover:text-red-600 dark:text-slate-300 dark:hover:bg-red-500/10" aria-label={`Diminuir ${produto.nome}`}><Minus size={15} /></button>
-      <input ref={inputRef} inputMode="decimal" type="number" step={passo} min={passo} value={quantidade} onClick={event => event.stopPropagation()} onChange={event => onChange(parseFloat(event.target.value) || 0)} className="h-8 w-12 border-x border-slate-200 bg-transparent text-center text-xs font-extrabold text-slate-800 outline-none dark:border-slate-700 dark:text-white" aria-label={`Quantidade de ${produto.nome}`} />
-      <button onClick={event => { event.stopPropagation(); ajustar(passo); }} className="flex h-8 w-8 items-center justify-center bg-red-600 text-white transition hover:bg-red-700" aria-label={`Aumentar ${produto.nome}`}><Plus size={15} /></button>
-    </div>
-    <div className="flex items-center gap-1">
-      {[1, 5, 10, 50].map(valor => <button key={valor} onClick={event => { event.stopPropagation(); ajustar(valor); }} className="rounded-md bg-slate-100 px-1.5 py-1 text-[9px] font-bold text-slate-500 transition hover:bg-red-100 hover:text-red-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-red-500/20 dark:hover:text-red-300">+{valor}</button>)}
-      <button onClick={event => { event.stopPropagation(); onRemove(); }} className="rounded-md p-1 text-slate-400 transition hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/15" aria-label={`Remover ${produto.nome}`}><Trash2 size={13} /></button>
-    </div>
-  </div>;
-}
