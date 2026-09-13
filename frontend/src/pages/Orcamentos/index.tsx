@@ -182,45 +182,47 @@ export function TelaOrcamentos() {
     setBuscaProduto('');
   };
 
-  const salvar = async () => {
-    if (!itens.length) {
-      setAlerta({ tipo: 'erro', texto: 'Adicione ao menos um produto ao orçamento.' });
-      return;
-    }
-    try {
-      setSalvando(true);
-      const payload = {
-        cliente_id: clienteId,
-        cliente_nome: clienteNome,
-        desconto,
-        itens: itens.map((item) => ({
-          produto_id: item.produto_id,
-          quantidade: item.quantidade,
-          valor_unitario: item.valor_unitario,
-        })),
-      };
+const salvar = async () => {
+  if (!itens.length) {
+    setAlerta({ tipo: 'erro', texto: 'Adicione ao menos um produto ao orçamento.' });
+    return;
+  }
+  try {
+    setSalvando(true);
+    const payload = {
+      cliente_id: clienteId,
+      cliente_nome: clienteNome,
+      desconto,
+      itens: itens.map((item) => ({
+        produto_id: item.produto_id,
+        produto_nome: item.produto_nome, // <--- Adicionado para resolver a constraint do banco
+        unidade_comercial: item.unidade_comercial,
+        quantidade: item.quantidade,
+        valor_unitario: item.valor_unitario,
+      })),
+    };
 
-      if (editandoId) {
-        await orcamentoService.atualizar(editandoId, payload);
-      } else {
-        await orcamentoService.criar(payload);
-      }
-
-      setAlerta({
-        tipo: 'sucesso',
-        texto: editandoId ? `Orçamento #${editandoId} atualizado!` : 'Orçamento criado com sucesso.',
-      });
-      limparFormulario();
-      await carregarListagem();
-    } catch (erro: any) {
-      setAlerta({
-        tipo: 'erro',
-        texto: erro.response?.data?.mensagem || 'Não foi possível salvar o orçamento.',
-      });
-    } finally {
-      setSalvando(false);
+    if (editandoId) {
+      await orcamentoService.atualizar(editandoId, payload);
+    } else {
+      await orcamentoService.criar(payload);
     }
-  };
+
+    setAlerta({
+      tipo: 'sucesso',
+      texto: editandoId ? `Orçamento #${editandoId} atualizado!` : 'Orçamento criado com sucesso.',
+    });
+    limparFormulario();
+    await carregarListagem();
+  } catch (erro: any) {
+    setAlerta({
+      tipo: 'erro',
+      texto: erro.response?.data?.mensagem || 'Não foi possível salvar o orçamento.',
+    });
+  } finally {
+    setSalvando(false);
+  }
+};
 
   const editar = async (orcamento: Orcamento) => {
     try {
